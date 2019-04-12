@@ -1,0 +1,149 @@
+11:12:44: DAQ starting
+11:12:44: mvme 0.9.5.4 (64-bit) running on Debian GNU/Linux 9 (stretch) (x86_64)
+
+11:12:44: VMUSB readout starting on 2019-03-18T11:12:44
+11:12:44: VMUSB Firmware Version 0a03_1111
+
+11:12:44: Loading readout stack for event "event0", stack id = 2, size= 10, load offset = 0
+11:12:44:   0xff000508
+11:12:44:   0x00002710
+11:12:44:   0x02000000
+11:12:44:   0x00002000
+11:12:44:   0x00004321
+11:12:44:   0x00002000
+11:12:44:   0x00008765
+11:12:44:   0x00000009
+11:12:44:   0xbb006035
+11:12:44:   0x00000001
+11:12:44: Loading readout stack for event "event1", stack id = 1, size= 36, load offset = 24
+11:12:44:   0x00000109
+11:12:44:   0x02006093
+11:12:44:   0x00002000
+11:12:44:   0x00000000
+11:12:44:   0x00000109
+11:12:44:   0x02006095
+11:12:44:   0x00002000
+11:12:44:   0x00000000
+11:12:44:   0x00000109
+11:12:44:   0x020060a9
+11:12:44:   0x00002000
+11:12:44:   0x00000000
+11:12:44:   0x00000109
+11:12:44:   0x020060ab
+11:12:44:   0x00002000
+11:12:44:   0x00000000
+11:12:44:   0x00000109
+11:12:44:   0x020060ad
+11:12:44:   0x00002000
+11:12:44:   0x00000000
+11:12:44:   0x00002000
+11:12:44:   0x00004321
+11:12:44:   0x00002000
+11:12:44:   0x00008765
+11:12:44:   0x00000109
+11:12:44:   0x88001000
+11:12:44:   0x00000109
+11:12:44:   0x88001004
+11:12:44:   0x00000109
+11:12:44:   0x88001008
+11:12:44:   0x00000109
+11:12:44:   0x8800100c
+11:12:44:   0x00002000
+11:12:44:   0x00004321
+11:12:44:   0x00002000
+11:12:44:   0x00008765
+11:12:44: 
+11:12:44: Initializing Modules:
+11:12:44:   event0.mdpp16_qdc
+11:12:44:     Module Reset
+11:12:44:       write a32 d16 0x02006008 0x00000001, write ok
+11:12:44:       wait 500ms
+11:12:44:       read a16 d16 0x02006004 -> 0x000000ff, 255
+11:12:44:       read a16 d16 0x0200600e -> 0x00003003, 12291
+11:12:44:     Module Init
+11:12:44:       write a32 d16 0x02006044 0x00000003, write ok
+11:12:44:       write a32 d16 0x02006050 0x00003fb0, write ok
+11:12:44:       write a32 d16 0x02006054 0x00000064, write ok
+11:12:44:       write a32 d16 0x02006058 0x00000100, write ok
+11:12:44:       write a32 d16 0x0200605e 0x00000100, write ok
+11:12:44:       write a32 d16 0x02006070 0x00000000, write ok
+11:12:44:       write a32 d16 0x02006072 0x000001f4, write ok
+11:12:44:       write a32 d16 0x02006074 0x00000004, write ok
+11:12:44:       write a32 d16 0x02006100 0x00000008, write ok
+11:12:44:       write a32 d16 0x02006110 0x00000028, write ok
+11:12:44:       write a32 d16 0x02006112 0x00000bb8, write ok
+11:12:44:       write a32 d16 0x02006114 0x000003e8, write ok
+11:12:44:       write a32 d16 0x02006116 0x00000000, write ok
+11:12:44:       write a32 d16 0x02006118 0x0000000a, write ok
+11:12:44:       write a32 d16 0x0200611a 0x00000002, write ok
+11:12:44:       write a32 d16 0x0200611c 0x000005ff, write ok
+11:12:44:       write a32 d16 0x0200611e 0x000005ff, write ok
+11:12:44:       write a32 d16 0x02006128 0x00000014, write ok
+11:12:44:       write a32 d16 0x0200612a 0x00000800, write ok
+11:12:44:       write a32 d16 0x0200612c 0x00000400, write ok
+11:12:44:       write a32 d16 0x0200612e 0x00000800, write ok
+11:12:44:     VME Interface Settings
+11:12:44:       write a32 d16 0x02006010 0x00000001, write ok
+11:12:44:       write a32 d16 0x02006012 0x00000000, write ok
+11:12:44:       write a32 d16 0x0200601c 0x00000000, write ok
+11:12:44:       write a32 d16 0x0200601e 0x00000001, write ok
+11:12:44:       write a32 d16 0x02006038 0x00000001, write ok
+11:12:44:       write a32 d16 0x02006036 0x00000003, write ok
+11:12:44:       write a32 d16 0x0200601a 0x00000001, write ok
+11:12:44:       write a32 d16 0x02006020 0x00000080, write ok
+11:12:44:       write a32 d16 0x02006024 0x000000bb, write ok
+11:12:44:   event1.mesytec_counter
+11:12:44:     Module Reset
+11:12:44:     Module Init
+11:12:44:       write a32 d16 0x02006090 0x00000003, write ok
+11:12:44:       write a32 d16 0x02006096 0x00000010, write ok
+11:12:44:   event1.v830
+11:12:44:     Module Reset
+11:12:44:       write a32 d16 0x88001120 0x00000001, write ok
+11:12:44:       read a16 d16 0x88001132 -> 0x0000ffff, 65535
+11:12:44:     Module Init
+11:12:44:       write a32 d16 0x88001122 0x00000001, write ok
+11:12:44:       write a32 d16 0x8800111c 0x000000cc, write ok
+11:12:44:       write a32 d16 0x8800111e 0x00000000, write ok
+11:12:44: Events DAQ Start
+11:12:44:   event0
+11:12:44:     writeabs a32 d16 0xbb00603a 0x00000000, write ok
+11:12:44:     writeabs a32 d16 0xbb006090 0x00000003, write ok
+11:12:44:     writeabs a32 d16 0xbb00603c 0x00000001, write ok
+11:12:44:     writeabs a32 d16 0xbb00603a 0x00000001, write ok
+11:12:44:     writeabs a32 d16 0xbb006034 0x00000001, write ok
+11:12:44:   event1
+11:12:44:     writeabs a32 d16 0x88001122 0x00000001, write ok
+11:12:44: 
+11:12:44: Begin VMUSB register dump
+11:12:44:   0x00,  0 = 0x11110a03 (FirmwareId)
+11:12:44:   0x04,  4 = 0x00000820 (GlobalMode)
+11:12:44:   0x08,  8 = 0x00000200 (DAQSettings)
+11:12:44:   0x0c, 12 = 0x11000003 (LEDSources)
+11:12:44:   0x10, 16 = 0x00000000 (DeviceSources)
+11:12:44:   0x14, 20 = 0x00000000 (DGGASettings)
+11:12:44:   0x18, 24 = 0x00000000 (DGGBSettings)
+11:12:44:   0x1c, 28 = 0x00000000 (ScalerAData)
+11:12:44:   0x20, 32 = 0x00000000 (ScalerBData)
+11:12:44:   0x24, 36 = 0x00000000 (EventsPerBuffer)
+11:12:44:   0x28, 40 = 0x00002100 (Irq12)
+11:12:44:   0x2c, 44 = 0x00000000 (Irq34)
+11:12:44:   0x30, 48 = 0x00000000 (Irq56)
+11:12:44:   0x34, 52 = 0x00000000 (Irq78)
+11:12:44:   0x38, 56 = 0x00000000 (ExtDGGSettings)
+11:12:44:   0x3c, 60 = 0x00000000 (USBBulkSetup)
+11:12:44: End VMUSB register dump
+11:12:44: Writing listfile into /home/nucstruc/wtan/QDC_Scaler_WS/listfiles/run_1189.zip
+11:12:44: 
+11:12:44: Entering readout loop
+11:12:44: VMUSB enter daq mode: writing 0x0003 to Action Register
+11:54:49: VMUSB readout stopping
+11:54:49: VMUSB leave daq mode: writing 0x0000 to Action Register
+11:54:49: Leaving readout loop
+11:54:49: 
+11:54:49: Events DAQ Stop
+11:54:49:   event0
+11:54:49:     writeabs a32 d16 0xbb00603a 0x00000000, write ok
+11:54:49:   event1
+11:54:49: 
+11:54:49: VMUSB readout stopped on 2019-03-18T11:54:49
