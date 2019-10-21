@@ -3,6 +3,13 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from matplotlib import rcParams
+rcParams.update({'figure.autolayout': True})
+
+plt.rcParams['xtick.labelsize']=12
+plt.rcParams['ytick.labelsize']=12
+
+
 # print('Attempting to create required directories: ')
 # try:
 #     os.mkdir('rMatrix')
@@ -10,17 +17,22 @@ import matplotlib.pyplot as plt
 #     os.mkdir('crossSection/P1')
 #     os.mkdir('crossSection/P2')
 #     os.mkdir('crossSection/A1')
+#     os.mkdir('crossPlots')
+#     os.mkdir('crossPlots/P1')
+#     os.mkdir('crossPlots/P2')
+#     os.mkdir('crossPlots/A1')
 # except OSError:
 #     print ("Directories already exist!")
 # else:
 #     print('DONE!')
 
-# detectors = ['det_h0-0','det_h0-1','det_h0-2','det_h0-3','det_h0-4','det_h0-5',
-#             'det_h0-6','det_h0-7','det_h1-0','det_h1-1','det_h1-2','det_h1-3',
-#             'det_h1-4']
-detectors = ["det0","det1","det2","det3","det4","det5","det6","det7","det8","det9","det10","det11","det12"]
+# detectors = ['det_h0-0','det_h0-1','det_h0-2','det_h0-3','det_h0-4',
+#              'det_h0-5','det_h0-6','det_h0-7','det_h1-0','det_h1-1',
+#              'det_h1-2','det_h1-3','det_h1-4']
+detectors = ['det0','det1','det2','det3','det4','det5','det6','det7','det8',
+             'det9','det10','det11','det12']
 
-# Read in the data into dataframe
+# Read in the data into dataframes
 dfeff = pd.read_csv('calibration/csv/detectorEfficiencies.csv')
 df1 = pd.read_csv('Yields/P1/p1Yields.csv')
 df2 = pd.read_csv('Yields/P2/p2Yields.csv')
@@ -32,12 +44,14 @@ effa1 = dfeff['a1'].values
 Angle = dfeff['Angle'].values
 
 # Angle (deg) for each detector, negative is beam left, positive is beam right
-#         00  01 02 03 04 05 06 07  10  11  12   13   14
+#                 00  01 02 03 04 05 06 07  10  11  12   13   14
 angle = np.array([120,105,90,45,30,15,0,-15,-30,-45,-90,-105,-120])
 
+AnglesList=['0','15','30','45','90','105','120']
 
-thickness = 44/(1e6)                         # 44ug/cm^2
-numOfTarget = thickness*(1/26.981)*6.022e23     # thickness * (mol/24 g) * N_a
+
+thickness = 5/(1e6)                         # 5ug/cm^2
+numOfTarget = thickness*(1/26.981)*6.022e23     # thickness * (mol/27 g) * N_a
 
 q_e = 1.602e-19
 scale = 1e-8    # 10^-8 C/pulse
@@ -45,10 +59,7 @@ q_corr = scale/(q_e)
 barn_conv = 1/(1e-24)
 solidAngle = 4*np.pi
 
-# """
 # Extract the columns of the DataFrame as numpy arrays
-
-
 p1Run = df1['Run'].values
 p1Det = df1['Detector'].values
 
@@ -69,31 +80,65 @@ p1Eproton = df1['Ep'].values/1000    # Convert keV to MeV
 # IsValid == 0 -> Bad Fit
 #
 # Mask for which the fit was bad
+mask1Fit = ((df1['Area'] > 800) & (df1['IsValid'] == 1))
 
-# """
-mask1Fit = (df1['IsValid'] == 1)
-mask1Fit = (df1['Area'] > 800)
+# Sort by energy, keeping others consistent!
+ind = p1Eproton.argsort()
+p1Eproton = p1Eproton[ind]
+p1Cross = p1Cross[ind]
+p1Cross_err = p1Cross_err[ind]
+p1Yield = p1Yield[ind]
+p1Yield_err = p1Yield_err[ind]
+
 for det in range(len(detectors)):
 
-    maskDet = ((df1['Detector']==detectors[det]) & mask1Fit)
-
+    # Clear any other figure
     plt.clf()
-    plt.errorbar(p1Eproton[maskDet],p1Cross[maskDet],yerr=p1Cross_err[maskDet],fmt='b.',markersize='2')
+
+    # maskDet = ((df1['Detector']==detectors[det]) & mask1Fit)
+    maskDet = ((df1['Detector']==detectors[det]))
+    maskDet = maskDet[ind]
+
+    plt.errorbar(p1Eproton[maskDet],p1Yield[maskDet],yerr=p1Yield_err[maskDet],fmt='b.',markersize='2')
     plt.yscale('log')
     plt.ylim(1e-6,1)
     plt.xlim(1.9,3.3)
     plt.xlabel('$E_{p}$ (MeV)')
     plt.ylabel('Cross-Section (barns)')
-    plt.title('p1 %s    %d$^{\circ}$'%(detectors[det],angle[det]))
-    plt.savefig('yieldPlots/P1/p1_%s.png'%detectors[det],dpi=300)
+    plt.title('$^{27}$Al($\\mathrm{p,\\gamma p_{1}}$)$^{27}$Al\t%s$^{\circ}$'%angle[det])
+    plt.savefig('yieldPlots/P1/p1_%s.png'%detectors[det],dpi=100)
+
+    # Clean up
+    plt.clf()
+
+    # maskDet = ((df1['Detector']==detectors[det]) & mask1Fit)
+    # maskDet = maskDet[ind]
+    #
+    # plt.plot(p1Eproton[maskDet],p1Cross[maskDet])
+    # plt.errorbar(p1Eproton[maskDet],p1Cross[maskDet],yerr=p1Cross_err[maskDet],fmt='b.',markersize='2')
+    # plt.yscale('log')
+    # plt.ylim(1e-6,1)
+    # plt.xlim(1.9,3.3)
+    # plt.xlabel('$E_{p}$ (MeV)')
+    # plt.ylabel('Cross-Section (barns)')
+    # plt.title('$^{27}$Al($\\mathrm{p,\\gamma p_{1}}$)$^{27}$Al\t%s$^{\circ}$'%angle[det])
+    # plt.savefig('crossPlots/P1/p1_%s.png'%detectors[det],dpi=100)
+
+
+    # SAVE YIELDS TO EXCEL TO MANUALLY PRUNE BAD RUNS LATER
+    df = pd.DataFrame(data=p1Yield[maskDet],index=p1Eproton[maskDet],columns=['Yield'])
+    df = df.assign(Yield_err=pd.Series(p1Yield_err[maskDet],index=df.index).values)
+    df.to_csv('yieldFiles/P1/p1_%s.csv'%detectors[det])
+    df.to_excel('yieldFiles/P1/p1_%s.xlsx'%detectors[det])
+
 
 # with open("rMatrix_p1.dat","w") as f:
 #     for loop in range(len(p1Cross)):
 #         printOut= '%f \t %d \t %.8f \t %.8f \n' %(p1Eproton[loop],Angle[loop],p1Cross[loop],p1Cross_err[loop])
 #         f.write(printOut)
 
-AnglesList=['0','15','30','45','90','105','120']
 
+"""
 # test2 = []
 f = open("rMatrix/rMatrix_p1.dat","w")
 f.close()
@@ -171,7 +216,7 @@ for ang in AnglesList:
     plt.xlim(1.9,3.3)
     plt.xlabel('$E_{p}$ (MeV)')
     plt.ylabel('Differential Cross-Section (barns/sr)')
-    plt.title('p1 %s$^{\circ}$'%ang)
+    plt.title('$^{27}$Al($\\mathrm{p,\\gamma p_{3}}$)$^{27}$Al\t%s$^{\circ}$'%angle[det])
     plt.savefig('crossSection/P1/p1_%s.png'%ang,dpi=300)
     plt.clf()
 
@@ -187,8 +232,9 @@ for ang in AnglesList:
 # test2 = set(test2[:16])
 # if (test1==test2): print("its the same!")
 # else: print("fuck its different!")
-
 # """
+
+
 # Extract the columns of the DataFrame as numpy arrays
 p2Run = df2['Run'].values
 p2Det = df2['Detector'].values
@@ -209,24 +255,66 @@ p2Eproton = df2['Ep'].values/1000    # Convert keV to MeV
 # IsValid == 0 -> Bad Fit
 #
 # Mask for which the fit was bad
-mask2Fit = (df2['IsValid'] == 1)
-mask2Fit = (df2['Area'] > 800)
+mask2Fit = ((df2['IsValid'] == 1) & (df2['Area'] > 800))
 
+# Sort by energy, keeping others consistent!
+ind = p2Eproton.argsort()
+p2Eproton = p2Eproton[ind]
+p2Cross = p2Cross[ind]
+p2Cross_err = p2Cross_err[ind]
+p2Yield = p2Yield[ind]
+p2Yield_err = p2Yield_err[ind]
 for det in range(len(detectors)):
 
-    maskDet = ((df2['Detector']==detectors[det]) & mask2Fit)
-
+    # Clear any other figure
     plt.clf()
-    plt.errorbar(p2Eproton[maskDet],p2Cross[maskDet],yerr=p2Cross_err[maskDet],fmt='b.',markersize='2')
+
+    # maskDet = ((df2['Detector']==detectors[det]) & mask2Fit)
+    maskDet = ((df2['Detector']==detectors[det]))
+    maskDet = maskDet[ind]
+
+    plt.errorbar(p2Eproton[maskDet],p2Yield[maskDet],yerr=p2Yield_err[maskDet],fmt='b.',markersize='2')
     plt.yscale('log')
     plt.ylim(1e-6,1)
     plt.xlim(1.9,3.3)
     plt.xlabel('$E_{p}$ (MeV)')
-    plt.ylabel('Cross-Section (barns/sr)')
-    plt.title('p2 %s    %d$^{\circ}$'%(detectors[det],angle[det]))
-    plt.savefig('yieldPlots/P2/p2_%s.png'%detectors[det],dpi=300)
+    plt.ylabel('Cross-Section (barns)')
+    plt.title('$^{27}$Al($\\mathrm{p,\\gamma p_{2}}$)$^{27}$Al\t%s$^{\circ}$'%angle[det])
+    plt.savefig('yieldPlots/P2/p2_%s.png'%detectors[det],dpi=100)
+
+    # Clean up
+    plt.clf()
+
+    # maskDet = ((df2['Detector']==detectors[det]) & mask2Fit)
+    # maskDet = ((df2['Detector']==detectors[det]))
+    # maskDet = maskDet[ind]
+    #
+    # plt.clf()
+    # plt.plot(p2Eproton[maskDet],p2Cross[maskDet])
+    # plt.errorbar(p2Eproton[maskDet],p2Cross[maskDet],yerr=p2Cross_err[maskDet],fmt='b.',markersize='2')
+    # plt.errorbar(p2Eproton[maskDet],p2Yield[maskDet],yerr=p2Yield_err[maskDet],fmt='b.',markersize='2')
+    # plt.yscale('log')
+    # plt.ylim(1e-6,1)
+    # plt.xlim(1.9,3.3)
+    # plt.xlabel('$E_{p}$ (MeV)')
+    # plt.ylabel('Cross-Section (barns/sr)')
+    # plt.title('$^{27}$Al($\\mathrm{p,\\gamma p_{2}}$)$^{27}$Al\t%s$^{\circ}$'%angle[det])
+    # plt.savefig('crossPlots/P2/p2_%s.png'%detectors[det],dpi=300)
+
+    # SAVE YIELDS TO EXCEL TO MANUALLY PRUNE BAD RUNS LATER
+    df = pd.DataFrame(data=p2Yield[maskDet],index=p2Eproton[maskDet],columns=['Yield'])
+    df = df.assign(Yield_err=pd.Series(p2Yield_err[maskDet],index=df.index).values)
+    df.to_csv('yieldFiles/P2/p2_%s.csv'%detectors[det])
+    df.to_excel('yieldFiles/P2/p2_%s.xlsx'%detectors[det])
 
 
+# with open("rMatrix_p2.dat","w") as f:
+#     for loop in range(len(p2Cross)):
+#         printOut= '%f \t %d \t %.8f \t %.8f \n' %(p2Eproton[loop],Angle[loop],p2Cross[loop],p2Cross_err[loop])
+#         f.write(printOut)
+
+
+"""
 f = open("rMatrix/rMatrix_p2.dat","w")
 f.close()
 for ang in AnglesList:
@@ -311,7 +399,7 @@ for ang in AnglesList:
 # """
 
 
-# """
+
 # Extract the columns of the DataFrame as numpy arrays
 a1Run = df3['Run'].values
 a1Det = df3['Detector'].values
@@ -330,25 +418,68 @@ a1Eproton = df3['Ep'].values/1000    # Convert keV to MeV
 
 # IsValid == 1 -> Good Fit
 # IsValid == 0 -> Bad Fit
-
+#
 # Mask for which the fit was bad
-mask3Fit = (df3['IsValid'] == 1)
-mask3Fit = (df3['Area'] > 800)
+mask3Fit = ((df3['Area'] > 250))# & (df3['IsValid'] == 1))
+
+# Sort by energy, keeping others consistent!
+ind = a1Eproton.argsort()
+a1Eproton = a1Eproton[ind]
+a1Cross = a1Cross[ind]
+a1Cross_err = a1Cross_err[ind]
+a1Yield = a1Yield[ind]
+a1Yield_err = a1Yield_err[ind]
 
 for det in range(len(detectors)):
 
-    maskDet = ((df3['Detector']==detectors[det]) & mask3Fit)
-
+    # Clear any other figure
     plt.clf()
+
+    # maskDet = ((df1['Detector']==detectors[det]) & mask1Fit)
+    maskDet = ((df3['Detector']==detectors[det]) & mask3Fit)
+    maskDet = maskDet[ind]
+
     plt.errorbar(a1Eproton[maskDet],a1Cross[maskDet],yerr=a1Cross_err[maskDet],fmt='b.',markersize='2')
     plt.yscale('log')
     plt.ylim(1e-6,1)
-    plt.xlim(1.9,3.3)
-    plt.xlabel('$E_{p}$ (MeV)')
-    plt.ylabel('Cross-Section (barns/sr)')
-    plt.title('a1 %s    %d$^{\circ}$'%(detectors[det],angle[det]))
-    plt.savefig('yieldPlots/A1/a1_%s.png'%detectors[det],dpi=300)
+    # plt.xlim(1.9,3.3)
+    plt.xlim(2.35,3.3)
+    plt.xlabel('$E_{p}$ (MeV)',fontsize=14)
+    plt.ylabel('Differential Cross-Section (barns/sr)', fontsize=14)
+    plt.title('$^{27}$Al($\\mathrm{p,\\alpha_{1}\\gamma }$)$^{24}$Mg\t%s$^{\circ}$'%angle[det],fontsize=20)
+    plt.savefig('yieldPlots/A1/a1_%s.png'%detectors[det],dpi=100)
 
+    # Clean up
+    plt.clf()
+
+    # maskDet = ((df3['Detector']==detectors[det]) & mask3Fit)
+    # maskDet = ((df3['Detector']==detectors[det]))
+    # maskDet = maskDet[ind]
+    # plt.plot(a1Eproton[maskDet],a1Cross[maskDet])
+    # plt.errorbar(a1Eproton[maskDet],a1Cross[maskDet],yerr=a1Cross_err[maskDet],fmt='b.',markersize='2')
+    # plt.errorbar(a1Eproton[maskDet],a1Yield[maskDet],yerr=a1Yield_err[maskDet],fmt='b.',markersize='2')
+    # plt.yscale('log')
+    # plt.ylim(1e-6,1)
+    # plt.xlim(1.9,3.3)
+    # plt.xlabel('$E_{p}$ (MeV)')
+    # plt.ylabel('Cross-Section (barns/sr)')
+    # plt.title('$^{27}$Al($\\mathrm{p,\\gamma \\alpha_{1}}$)$^{24}$Mg\t%s$^{\circ}$'%angle[det])
+    # plt.savefig('crossPlots/A1/a1_%s.png'%detectors[det],dpi=300)
+
+    # SAVE YIELDS TO EXCEL TO MANUALLY PRUNE BAD RUNS LATER
+    df = pd.DataFrame(data=a1Yield[maskDet],index=a1Eproton[maskDet],columns=['Yield'])
+    df = df.assign(Yield_err=pd.Series(a1Yield_err[maskDet],index=df.index).values)
+    df.to_csv('yieldFiles/A1/a1_%s.csv'%detectors[det])
+    df.to_excel('yieldFiles/A1/a1_%s.xlsx'%detectors[det])
+
+# with open("rMatrix_a1.dat","w") as f:
+#     for loop in range(len(a1Cross)):
+#         printOut= '%f \t %d \t %.8f \t %.8f \n' %(a1Eproton[loop],Angle[loop],a1Cross[loop],a1Cross_err[loop])
+#         f.write(printOut)
+
+
+
+"""
 f = open("rMatrix/rMatrix_a1.dat","w")
 f.close()
 

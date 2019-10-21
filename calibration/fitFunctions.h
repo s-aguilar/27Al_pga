@@ -175,7 +175,12 @@ TFitResultPtr single_gauss_area_p1(TH1D *H0){
 	ffit1->SetParameters(1,0,0,2000,703,12);
 	ffit1->FixParameter(2,0);		// Makes it a linear background
 
-	TFitResultPtr r = H0->Fit("ffit1","SQR");
+	// Set limits on parameters to better constrain the fit
+	ffit1->SetParLimits(3,0,1e8);	// Normalization
+	ffit1->SetParLimits(4,low,high);
+	ffit1->SetParLimits(5,7,17);	// Std dev range
+
+	TFitResultPtr r = H0->Fit("ffit1","SQRN0");
 	return r;
 
 }
@@ -189,6 +194,11 @@ TFitResultPtr single_gauss_area_p2(TH1D *H0){
 	ffit1->SetParNames("a0","a1","a2","norm","mean","sigma");
     ffit1->SetParameters(1,0,0,2000,850,12); //840
     ffit1->FixParameter(2,0);		// Makes it a linear background
+
+	// Set limits on parameters to better constrain the fit
+	ffit1->SetParLimits(3,0,1e8);	// Normalization
+	ffit1->SetParLimits(4,low,high);
+	ffit1->SetParLimits(5,7,17);	// Std dev range
 
 	TFitResultPtr r = H0->Fit("ffit1","SQR");
 	return r;

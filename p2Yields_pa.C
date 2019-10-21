@@ -2,6 +2,8 @@
 using std::cout;
 using std::endl;
 
+#include <chrono>  // for high_resolution_clock
+
 #include <string>
 using std::string;
 
@@ -26,8 +28,11 @@ using std::vector;
 // if 1, use local, if 0 use CRC
 int loc = 0;
 
+// if 1, save plots, if 0 don't save
+int plot = 0;
 
-void peakFitter(const char *fileName, const char *detector,
+
+void peakFitter(TFile *TFitOut, const char *fileName, const char *detector,
 	int detLoop){
 
 
@@ -36,6 +41,9 @@ void peakFitter(const char *fileName, const char *detector,
 
 	// Get root file
 	TFile *fyield = new TFile(fileName);
+
+	// Change output directory to TFitOut
+	TFitOut->cd();
 
 	// Get integrated charge from root file
 	TVectorD *qcharge = static_cast<TVectorD*>(fyield->Get("pulses"));
@@ -77,9 +85,16 @@ void peakFitter(const char *fileName, const char *detector,
 
 	// ATTEMPT TO FIT
 	try {
+
+		string runNum = fileName;
+		if (loc==1) runNum = runNum.substr(8,4);
+		else runNum = runNum.substr(70,4);
+
 		// .Get() returns the contained pointer to TFitResult. Dereference it with "*""
 		TFitResult fitResults = static_cast<TFitResult>(*single_gauss_area_p2(hyield).Get());
-		// fitResults.Print();
+
+		// Write out fitResults to current TFile (TFitOut)
+		fitResults.Write(Form("det-%i",detLoop));
 
 		area = fitResults.Parameter(3);
 		area_err = fitResults.Error(3);
@@ -93,14 +108,12 @@ void peakFitter(const char *fileName, const char *detector,
 		double yield = area/(charge);
 		double yield_err = area_err/(charge);
 
-		string runNum = fileName;
-		if (loc==1) runNum = runNum.substr(8,4);
-		else runNum = runNum.substr(70,4);
-
 		string detNum = detector;
 
-		c0->SaveAs(Form("Yields/P2/run_%s/%s_Fit.png",runNum.c_str(),detNum.c_str()));
-		c0->SaveAs(Form("Yields/P2/det-%i/run_%s_Fit.png",detLoop,runNum.c_str()));
+		if(plot==1){
+			c0->SaveAs(Form("Yields/P2/run_%s/%s_Fit.pdf",runNum.c_str(),detNum.c_str()));
+			c0->SaveAs(Form("Yields/P2/det-%i/run_%s_Fit.pdf",detLoop,runNum.c_str()));
+		}
 
 		ofstream myfile;
 		myfile.open ("Yields/P2/_P2.csv",std::ios::app);
@@ -154,13 +167,15 @@ void p2Yields_pa(){
 	// for(int ii = 0; ii<13; ii++){
 	// 	try {
 	// 		gSystem->Exec(Form("mkdir Yields/P2/det-%i",ii));
-	// 		gSystem->Exec(Form("mkdir TFitResult/P2/det-%i",ii));
 	// 	}catch(...){}
 	// }
 
 
 	// Loop through runs: 97-107
 	cout << "\nBEGINNING PEAK FITTING:" << endl;
+
+	// Record start time
+	auto start = std::chrono::high_resolution_clock::now();
 
 	int fileNum = 1;
 	int runStart = 97 ;
@@ -203,6 +218,7 @@ void p2Yields_pa(){
 		else if(i==640) continue;
 		else if(i==645) continue;
 		else if(i==649) continue;
+		else if(i==667) continue;	// Charge not recorded correctly
 		else if(i==670) continue;
 		else if(i==672) continue;
 		else if(i==679) continue;
@@ -211,12 +227,12 @@ void p2Yields_pa(){
 		else if(i==686) continue;
 		else if(i==690) continue;
 		else if(i==727) continue;
-		// else if(i==863) continue; // BG
-		// else if(i==887) continue;
-		// else if(i==922) continue;
-		// else if(i==939) continue; // BG
-		// else if(i==942) continue;
-		else if(i>=808 && i<=952) continue;	// TUNE PROBLEM IN P1 channel
+		else if(i==863) continue; // BG
+		else if(i==887) continue;
+		else if(i==922) continue;
+		else if(i==939) continue; // BG
+		else if(i==942) continue;
+		// else if(i>=808 && i<=952) continue;	// TUNE PROBLEM IN P1 channel
 		else if(i>=953 && i<=959) continue;
 		else if(i==980) continue;
 		else if(i==984) continue;
@@ -242,8 +258,8 @@ void p2Yields_pa(){
 		// 	gSystem->Exec(Form("mkdir Yields/P2/run_%s",runNum_String));
 		// }catch(...){}
 
-		// // Want to open TFILE in subdirectory and save fit results evetually.
-		// TFile *fitResults = new TFile(Form(""));
+		// Save TFitResult results.
+		TFile *TFitFiles = new TFile(Form("TFitResult/P2/run_%s.root",runNum_String),"RECREATE");
 
 		// Loop through detectors on board
 		for(int j=0;j<13;j++){ // 13
@@ -254,10 +270,21 @@ void p2Yields_pa(){
 			detect = Form("det%d",j);
 
 			// Perform peak fitting
-			peakFitter(files,detect,j);
+			peakFitter(TFitFiles,files,detect,j);
 		}
+
+		// Write all TObjects in memory (TFitResult) to TFile
+		TFitFiles->Write();
+		TFitFiles->Close();
 
 		cout << Form("Fitting run_%s complete",runNum_String) << endl;
 		fileNum+=1;
 	}
+
+	// Record end time
+	auto finish = std::chrono::high_resolution_clock::now();
+
+	std::chrono::duration<double> elapsed = finish - start;
+
+	cout << "Elapsed time: " << elapsed.count() << " s\n";
 }
