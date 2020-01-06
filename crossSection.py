@@ -9,6 +9,17 @@ rcParams.update({'figure.autolayout': True})
 plt.rcParams['xtick.labelsize']=12
 plt.rcParams['ytick.labelsize']=12
 
+# This function checks to see if the errror is larger than the measurement,
+# if it is it just artificially assigns it an error
+def check(x,x_err):
+    if x <= 1e-8:
+        print('we got a problem')
+    if x_err >= x:
+        print('uhoh')
+        print(x,'\t',x_err)
+        return x,x*.9
+    #if x_err >= x: return x_err
+    else: return x,x_err
 
 # print('Attempting to create required directories: ')
 # try:
@@ -26,9 +37,6 @@ plt.rcParams['ytick.labelsize']=12
 # else:
 #     print('DONE!')
 
-# detectors = ['det_h0-0','det_h0-1','det_h0-2','det_h0-3','det_h0-4',
-#              'det_h0-5','det_h0-6','det_h0-7','det_h1-0','det_h1-1',
-#              'det_h1-2','det_h1-3','det_h1-4']
 detectors = ['det0','det1','det2','det3','det4','det5','det6','det7','det8',
              'det9','det10','det11','det12']
 
@@ -59,6 +67,7 @@ q_corr = scale/(q_e)
 barn_conv = 1/(1e-24)
 solidAngle = 4*np.pi
 
+"""
 # Extract the columns of the DataFrame as numpy arrays
 p1Run = df1['Run'].values
 p1Det = df1['Detector'].values
@@ -66,8 +75,11 @@ p1Det = df1['Detector'].values
 p1Yield = df1['Yield'].values / q_corr
 p1Yield_err = df1['Yield err'].values / q_corr
 
-p1Yield_effcor = p1Yield / effp1
-p1Yield_err_effcor = p1Yield_err / effp1
+# p1Yield_effcor = p1Yield / effp1
+# p1Yield_err_effcor = p1Yield_err / effp1
+
+p1Yield_effcor = p1Yield / effp1[0:len(p1Yield)]
+p1Yield_err_effcor = p1Yield_err / effp1[0:len(p1Yield)]
 
 p1Cross = p1Yield_effcor / numOfTarget * barn_conv / solidAngle
 p1Cross_err = p1Yield_err_effcor / numOfTarget* barn_conv / solidAngle
@@ -95,7 +107,6 @@ for det in range(len(detectors)):
     # Clear any other figure
     plt.clf()
 
-    # maskDet = ((df1['Detector']==detectors[det]) & mask1Fit)
     maskDet = ((df1['Detector']==detectors[det]))
     maskDet = maskDet[ind]
 
@@ -111,18 +122,18 @@ for det in range(len(detectors)):
     # Clean up
     plt.clf()
 
-    # maskDet = ((df1['Detector']==detectors[det]) & mask1Fit)
-    # maskDet = maskDet[ind]
-    #
-    # plt.plot(p1Eproton[maskDet],p1Cross[maskDet])
-    # plt.errorbar(p1Eproton[maskDet],p1Cross[maskDet],yerr=p1Cross_err[maskDet],fmt='b.',markersize='2')
-    # plt.yscale('log')
-    # plt.ylim(1e-6,1)
-    # plt.xlim(1.9,3.3)
-    # plt.xlabel('$E_{p}$ (MeV)')
-    # plt.ylabel('Cross-Section (barns)')
-    # plt.title('$^{27}$Al($\\mathrm{p,\\gamma p_{1}}$)$^{27}$Al\t%s$^{\circ}$'%angle[det])
-    # plt.savefig('crossPlots/P1/p1_%s.png'%detectors[det],dpi=100)
+    maskDet = ((df1['Detector']==detectors[det]) & mask1Fit)
+    maskDet = maskDet[ind]
+
+    plt.plot(p1Eproton[maskDet],p1Cross[maskDet])
+    plt.errorbar(p1Eproton[maskDet],p1Cross[maskDet],yerr=p1Cross_err[maskDet],fmt='b.',markersize='2')
+    plt.yscale('log')
+    plt.ylim(1e-6,1)
+    plt.xlim(1.9,3.3)
+    plt.xlabel('$E_{p}$ (MeV)')
+    plt.ylabel('Cross-Section (barns)')
+    plt.title('$^{27}$Al($\\mathrm{p,\\gamma p_{1}}$)$^{27}$Al\t%s$^{\circ}$'%angle[det])
+    plt.savefig('crossPlots/P1/p1_%s.png'%detectors[det],dpi=100)
 
 
     # SAVE YIELDS TO EXCEL TO MANUALLY PRUNE BAD RUNS LATER
@@ -131,16 +142,14 @@ for det in range(len(detectors)):
     df.to_csv('yieldFiles/P1/p1_%s.csv'%detectors[det])
     df.to_excel('yieldFiles/P1/p1_%s.xlsx'%detectors[det])
 
+with open("rMatrix/27Al_rMatrix_p1_allAngles.dat","w") as f:
+    for loop in range(len(p1Cross)):
+        printOut= '%f \t %d \t %.8f \t %.8f \n' %(p1Eproton[loop],Angle[loop],p1Cross[loop],p1Cross_err[loop])
+        f.write(printOut)
 
-# with open("rMatrix_p1.dat","w") as f:
-#     for loop in range(len(p1Cross)):
-#         printOut= '%f \t %d \t %.8f \t %.8f \n' %(p1Eproton[loop],Angle[loop],p1Cross[loop],p1Cross_err[loop])
-#         f.write(printOut)
 
-
-"""
 # test2 = []
-f = open("rMatrix/rMatrix_p1.dat","w")
+f = open("rMatrix/27Al_rMatrix_p1.dat","w")
 f.close()
 for ang in AnglesList:
     _p1Eproton = []
@@ -154,42 +163,56 @@ for ang in AnglesList:
         if ang == '0':
             # print(p1Cross[x*13+6])
             _Angle.append(Angle[x*13+6])
-            _p1Cross.append(p1Cross[x*13+6])
-            # test2.append(p1Cross[x*13+6])
+            cross = p1Cross[x*13+6]
             err = p1Cross_err[x*13+6]
+            cross,err = check(cross,err)
+            _p1Cross.append(cross)
+            # test2.append(p1Cross[x*13+6])
             _p1Cross_err.append( (err**2+(.05*_p1Cross[-1])**2)**.5  )   # inflating the error bars for 5% systematic uncertainty
         elif ang == '15':
             _Angle.append( (abs(Angle[x*13+5])+abs(Angle[x*13+7]))/2 )
-            _p1Cross.append( (p1Cross[x*13+5]+p1Cross[x*13+7])/2 )
+            cross = (p1Cross[x*13+5]+p1Cross[x*13+7])/2
             # _p1Cross_err.append( (p1Cross_err[x*13+5]+p1Cross_err[x*13+7])/2 )
             err = (p1Cross_err[x*13+5]**2+p1Cross_err[x*13+7]**2)**.5
+            cross,err = check(cross,err)
+            _p1Cross.append(cross)
             _p1Cross_err.append( (err**2+(.05*_p1Cross[-1])**2)**.5 )
         elif ang == '30':
             _Angle.append( int( (abs(Angle[x*13+4])+abs(Angle[x*13+8]))/2 ) )
-            _p1Cross.append( (p1Cross[x*13+4]+p1Cross[x*13+8])/2 )
+            cross = (p1Cross[x*13+4]+p1Cross[x*13+8])/2
             err = (p1Cross_err[x*13+4]**2+p1Cross_err[x*13+8]**2)**.5
+            cross, err = check(cross,err)
+            _p1Cross.append(cross)
             _p1Cross_err.append( (err**2+(.05*_p1Cross[-1])**2)**.5 )
         elif ang == '45':
             _Angle.append( int( (abs(Angle[x*13+3])+abs(Angle[x*13+9]))/2 ) )
-            _p1Cross.append( (p1Cross[x*13+3]+p1Cross[x*13+9])/2 )
+            cross = (p1Cross[x*13+3]+p1Cross[x*13+9])/2
             err = (p1Cross_err[x*13+3]**2+p1Cross_err[x*13+9]**2)**.5
+            cross, err = check(cross,err)
+            _p1Cross.append(cross)
             _p1Cross_err.append( (err**2+(.05*_p1Cross[-1])**2)**.5 )
         elif ang == '90':
             _Angle.append( int( (abs(Angle[x*13+2])+abs(Angle[x*13+10]))/2 ) )
-            _p1Cross.append( (p1Cross[x*13+2]+p1Cross[x*13+10])/2 )
+            cross = (p1Cross[x*13+2]+p1Cross[x*13+10])/2
             err = (p1Cross_err[x*13+2]**2+p1Cross_err[x*13+10]**2)**.5
+            cross,err = check(cross,err)
+            _p1Cross.append(cross)
             _p1Cross_err.append( (err**2+(.05*_p1Cross[-1])**2)**.5 )
         elif ang == '105':
             # _Angle.append( int( (abs(Angle[x*13+1])+abs(Angle[x*13+11]))/2 ) )
             _Angle.append( int( 75 ) )
-            _p1Cross.append( (p1Cross[x*13+1]+p1Cross[x*13+11])/2 )
+            cross = (p1Cross[x*13+1]+p1Cross[x*13+11])/2
             err = (p1Cross_err[x*13+1]**2+p1Cross_err[x*13+11]**2)**.5
+            cross,err = check(cross,err)
+            _p1Cross.append(cross)
             _p1Cross_err.append( (err**2+(.05*_p1Cross[-1])**2)**.5 )
         elif ang == '120':
             # _Angle.append( int( (abs(Angle[x*13])+abs(Angle[x*13+12]))/2 ) )
             _Angle.append( int( 60 ) )
-            _p1Cross.append( (p1Cross[x*13]+p1Cross[x*13+12])/2 )
+            cross = (p1Cross[x*13]+p1Cross[x*13+12])/2
             err = (p1Cross_err[x*13]**2+p1Cross_err[x*13+12]**2)**.5
+            cross,err = check(cross,err)
+            _p1Cross.append(cross)
             _p1Cross_err.append( (err**2+(.05*_p1Cross[-1])**2)**.5 )
 
 
@@ -221,7 +244,7 @@ for ang in AnglesList:
     plt.clf()
 
 
-    with open("rMatrix/rMatrix_p1.dat","a") as f:
+    with open("rMatrix/27Al_rMatrix_p1.dat","a") as f:
         for loop in range(867):
             printOut= '%f \t %d \t %.8f \t %.8f \n' %(_p1Eproton[loop],_Angle[loop],_p1Cross[loop],_p1Cross_err[loop])
             f.write(printOut)
@@ -232,9 +255,10 @@ for ang in AnglesList:
 # test2 = set(test2[:16])
 # if (test1==test2): print("its the same!")
 # else: print("fuck its different!")
+
 # """
 
-
+"""
 # Extract the columns of the DataFrame as numpy arrays
 p2Run = df2['Run'].values
 p2Det = df2['Detector'].values
@@ -242,8 +266,8 @@ p2Det = df2['Detector'].values
 p2Yield = df2['Yield'].values / q_corr
 p2Yield_err = df2['Yield err'].values / q_corr
 
-p2Yield_effcor = p2Yield / effp2
-p2Yield_err_effcor = p2Yield_err / effp2
+p2Yield_effcor = p2Yield / effp2[0:len(p2Yield)]
+p2Yield_err_effcor = p2Yield_err / effp2[0:len(p2Yield)]
 
 p2Cross = p2Yield_effcor / numOfTarget * barn_conv / solidAngle
 p2Cross_err = p2Yield_err_effcor / numOfTarget* barn_conv / solidAngle
@@ -269,7 +293,6 @@ for det in range(len(detectors)):
     # Clear any other figure
     plt.clf()
 
-    # maskDet = ((df2['Detector']==detectors[det]) & mask2Fit)
     maskDet = ((df2['Detector']==detectors[det]))
     maskDet = maskDet[ind]
 
@@ -285,21 +308,20 @@ for det in range(len(detectors)):
     # Clean up
     plt.clf()
 
-    # maskDet = ((df2['Detector']==detectors[det]) & mask2Fit)
-    # maskDet = ((df2['Detector']==detectors[det]))
-    # maskDet = maskDet[ind]
-    #
-    # plt.clf()
-    # plt.plot(p2Eproton[maskDet],p2Cross[maskDet])
-    # plt.errorbar(p2Eproton[maskDet],p2Cross[maskDet],yerr=p2Cross_err[maskDet],fmt='b.',markersize='2')
-    # plt.errorbar(p2Eproton[maskDet],p2Yield[maskDet],yerr=p2Yield_err[maskDet],fmt='b.',markersize='2')
-    # plt.yscale('log')
-    # plt.ylim(1e-6,1)
-    # plt.xlim(1.9,3.3)
-    # plt.xlabel('$E_{p}$ (MeV)')
-    # plt.ylabel('Cross-Section (barns/sr)')
-    # plt.title('$^{27}$Al($\\mathrm{p,\\gamma p_{2}}$)$^{27}$Al\t%s$^{\circ}$'%angle[det])
-    # plt.savefig('crossPlots/P2/p2_%s.png'%detectors[det],dpi=300)
+    maskDet = ((df2['Detector']==detectors[det]) & mask2Fit)
+    maskDet = maskDet[ind]
+
+    plt.clf()
+    plt.plot(p2Eproton[maskDet],p2Cross[maskDet])
+    plt.errorbar(p2Eproton[maskDet],p2Cross[maskDet],yerr=p2Cross_err[maskDet],fmt='b.',markersize='2')
+    plt.errorbar(p2Eproton[maskDet],p2Yield[maskDet],yerr=p2Yield_err[maskDet],fmt='b.',markersize='2')
+    plt.yscale('log')
+    plt.ylim(1e-6,1)
+    plt.xlim(1.9,3.3)
+    plt.xlabel('$E_{p}$ (MeV)')
+    plt.ylabel('Cross-Section (barns/sr)')
+    plt.title('$^{27}$Al($\\mathrm{p,\\gamma p_{2}}$)$^{27}$Al\t%s$^{\circ}$'%angle[det])
+    plt.savefig('crossPlots/P2/p2_%s.png'%detectors[det],dpi=300)
 
     # SAVE YIELDS TO EXCEL TO MANUALLY PRUNE BAD RUNS LATER
     df = pd.DataFrame(data=p2Yield[maskDet],index=p2Eproton[maskDet],columns=['Yield'])
@@ -308,14 +330,14 @@ for det in range(len(detectors)):
     df.to_excel('yieldFiles/P2/p2_%s.xlsx'%detectors[det])
 
 
-# with open("rMatrix_p2.dat","w") as f:
-#     for loop in range(len(p2Cross)):
-#         printOut= '%f \t %d \t %.8f \t %.8f \n' %(p2Eproton[loop],Angle[loop],p2Cross[loop],p2Cross_err[loop])
-#         f.write(printOut)
+with open("rMatrix/27Al_rMatrix_p2_allAngles.dat","w") as f:
+    for loop in range(len(p2Cross)):
+        printOut= '%f \t %d \t %.8f \t %.8f \n' %(p2Eproton[loop],Angle[loop],p2Cross[loop],p2Cross_err[loop])
+        f.write(printOut)
 
 
-"""
-f = open("rMatrix/rMatrix_p2.dat","w")
+
+f = open("rMatrix/27Al_rMatrix_p2.dat","w")
 f.close()
 for ang in AnglesList:
     _p2Eproton = []
@@ -329,40 +351,54 @@ for ang in AnglesList:
         if ang == '0':
             # print(p2Cross[x*13+6])
             _Angle.append(Angle[x*13+6])
-            _p2Cross.append(p2Cross[x*13+6])
+            cross = p2Cross[x*13+6]
             err = p2Cross_err[x*13+6]
+            cross,err = check(cross,err)
+            _p2Cross.append(cross)
             _p2Cross_err.append( (err**2+(.05*_p2Cross[-1])**2)**.5 )
         elif ang == '15':
             _Angle.append( (abs(Angle[x*13+5])+abs(Angle[x*13+7]))/2 )
-            _p2Cross.append( (p2Cross[x*13+5]+p2Cross[x*13+7])/2 )
+            cross = (p2Cross[x*13+5]+p2Cross[x*13+7])/2
             err = (p2Cross_err[x*13+5]**2+p2Cross_err[x*13+7]**2)**.5
+            cross,err = check(cross,err)
+            _p2Cross.append(cross)
             _p2Cross_err.append( (err**2+(.05*_p2Cross[-1])**2)**.5 )
         elif ang == '30':
             _Angle.append( int( (abs(Angle[x*13+4])+abs(Angle[x*13+8]))/2 ) )
-            _p2Cross.append( (p2Cross[x*13+4]+p2Cross[x*13+8])/2 )
+            cross = (p2Cross[x*13+4]+p2Cross[x*13+8])/2
             err = (p2Cross_err[x*13+4]**2+p2Cross_err[x*13+8]**2)**.5
+            cross,err = check(cross,err)
+            _p2Cross.append(cross)
             _p2Cross_err.append( (err**2+(.05*_p2Cross[-1])**2)**.5 )
         elif ang == '45':
             _Angle.append( int( (abs(Angle[x*13+3])+abs(Angle[x*13+9]))/2 ) )
-            _p2Cross.append( (p2Cross[x*13+3]+p2Cross[x*13+9])/2 )
+            cross = (p2Cross[x*13+3]+p2Cross[x*13+9])/2
             err = (p2Cross_err[x*13+3]**2+p2Cross_err[x*13+9]**2)**.5
+            cross,err = check(cross,err)
+            _p2Cross.append(cross)
             _p2Cross_err.append( (err**2+(.05*_p2Cross[-1])**2)**.5 )
         elif ang == '90':
             _Angle.append( int( (abs(Angle[x*13+2])+abs(Angle[x*13+10]))/2 ) )
-            _p2Cross.append( (p2Cross[x*13+2]+p2Cross[x*13+10])/2 )
+            cross = (p2Cross[x*13+2]+p2Cross[x*13+10])/2
             err = (p2Cross_err[x*13+2]**2+p2Cross_err[x*13+10]**2)**.5
+            cross,err = check(cross,err)
+            _p2Cross.append(cross)
             _p2Cross_err.append( (err**2+(.05*_p2Cross[-1])**2)**.5 )
         elif ang == '105':
             # _Angle.append( int( (abs(Angle[x*13+1])+abs(Angle[x*13+11]))/2 ) )
             _Angle.append( int( 75 ) )
-            _p2Cross.append( (p2Cross[x*13+1]+p2Cross[x*13+11])/2 )
+            cross = (p2Cross[x*13+1]+p2Cross[x*13+11])/2
             err = (p2Cross_err[x*13+1]**2+p2Cross_err[x*13+11]**2)**.5
+            cross,err = check(cross,err)
+            _p2Cross.append(cross)
             _p2Cross_err.append( (err**2+(.05*_p2Cross[-1])**2)**.5 )
         elif ang == '120':
             # _Angle.append( int( (abs(Angle[x*13])+abs(Angle[x*13+12]))/2 ) )
             _Angle.append( int( 60 ) )
-            _p2Cross.append( (p2Cross[x*13]+p2Cross[x*13+12])/2 )
+            cross = (p2Cross[x*13]+p2Cross[x*13+12])/2
             err = (p2Cross_err[x*13]**2+p2Cross_err[x*13+12]**2)**.5
+            cross,err = check(cross,err)
+            _p2Cross.append(cross)
             _p2Cross_err.append( (err**2+(.05*_p2Cross[-1])**2)**.5 )
 
 
@@ -392,7 +428,7 @@ for ang in AnglesList:
     plt.savefig('crossSection/P2/p2_%s.png'%ang,dpi=300)
     plt.clf()
 
-    with open("rMatrix/rMatrix_p2.dat","a") as f:
+    with open("rMatrix/27Al_rMatrix_p2.dat","a") as f:
         for loop in range(867):
             printOut= '%f \t %d \t %.8f \t %.8f \n' %(_p2Eproton[loop],_Angle[loop],_p2Cross[loop],_p2Cross_err[loop])
             f.write(printOut)
@@ -401,14 +437,23 @@ for ang in AnglesList:
 
 
 # Extract the columns of the DataFrame as numpy arrays
+mask3Fit = ((df3['Area'] > 200) & (df3['IsValid'] == 1))
+df3 = df3[mask3Fit]
+df3 = df3.sort_values(by=['Ep','DetNum'])
+print(df3.head(20))
+exit()
+df3 = df3[df3.RunNum != '939']
+print(df3.head(20))
+
+exit()
 a1Run = df3['Run'].values
 a1Det = df3['Detector'].values
 
 a1Yield = df3['Yield'].values/ q_corr
 a1Yield_err = df3['Yield err'].values/ q_corr
 
-a1Yield_effcor = a1Yield / effa1
-a1Yield_err_effcor = a1Yield_err / effa1
+a1Yield_effcor = a1Yield / effa1[0:len(a1Yield)]
+a1Yield_err_effcor = a1Yield_err / effa1[0:len(a1Yield)]
 
 a1Cross = a1Yield_effcor / numOfTarget * barn_conv / solidAngle
 a1Cross_err = a1Yield_err_effcor / numOfTarget* barn_conv / solidAngle
@@ -420,23 +465,24 @@ a1Eproton = df3['Ep'].values/1000    # Convert keV to MeV
 # IsValid == 0 -> Bad Fit
 #
 # Mask for which the fit was bad
-mask3Fit = ((df3['Area'] > 250))# & (df3['IsValid'] == 1))
+# mask3Fit = ((df3['Area'] > 250) & (df3['IsValid'] == 1))
 
-# Sort by energy, keeping others consistent!
-ind = a1Eproton.argsort()
-a1Eproton = a1Eproton[ind]
-a1Cross = a1Cross[ind]
-a1Cross_err = a1Cross_err[ind]
-a1Yield = a1Yield[ind]
-a1Yield_err = a1Yield_err[ind]
+
+# # Sort by energy, keeping others consistent! DEPRECATED
+# ind = a1Eproton.argsort()
+# a1Eproton = a1Eproton[ind]
+# a1Cross = a1Cross[ind]
+# a1Cross_err = a1Cross_err[ind]
+# a1Yield = a1Yield[ind]
+# a1Yield_err = a1Yield_err[ind]
+
 
 for det in range(len(detectors)):
 
     # Clear any other figure
     plt.clf()
 
-    # maskDet = ((df1['Detector']==detectors[det]) & mask1Fit)
-    maskDet = ((df3['Detector']==detectors[det]) & mask3Fit)
+    maskDet = ((df3['Detector']==detectors[det]))
     maskDet = maskDet[ind]
 
     plt.errorbar(a1Eproton[maskDet],a1Cross[maskDet],yerr=a1Cross_err[maskDet],fmt='b.',markersize='2')
@@ -452,37 +498,35 @@ for det in range(len(detectors)):
     # Clean up
     plt.clf()
 
-    # maskDet = ((df3['Detector']==detectors[det]) & mask3Fit)
-    # maskDet = ((df3['Detector']==detectors[det]))
-    # maskDet = maskDet[ind]
-    # plt.plot(a1Eproton[maskDet],a1Cross[maskDet])
-    # plt.errorbar(a1Eproton[maskDet],a1Cross[maskDet],yerr=a1Cross_err[maskDet],fmt='b.',markersize='2')
-    # plt.errorbar(a1Eproton[maskDet],a1Yield[maskDet],yerr=a1Yield_err[maskDet],fmt='b.',markersize='2')
-    # plt.yscale('log')
-    # plt.ylim(1e-6,1)
-    # plt.xlim(1.9,3.3)
-    # plt.xlabel('$E_{p}$ (MeV)')
-    # plt.ylabel('Cross-Section (barns/sr)')
-    # plt.title('$^{27}$Al($\\mathrm{p,\\gamma \\alpha_{1}}$)$^{24}$Mg\t%s$^{\circ}$'%angle[det])
-    # plt.savefig('crossPlots/A1/a1_%s.png'%detectors[det],dpi=300)
+    maskDet = ((df3['Detector']==detectors[det]) & mask3Fit)
+    maskDet = maskDet[ind]
+    plt.plot(a1Eproton[maskDet],a1Cross[maskDet])
+    plt.errorbar(a1Eproton[maskDet],a1Cross[maskDet],yerr=a1Cross_err[maskDet],fmt='b.',markersize='2')
+    plt.errorbar(a1Eproton[maskDet],a1Yield[maskDet],yerr=a1Yield_err[maskDet],fmt='b.',markersize='2')
+    plt.yscale('log')
+    plt.ylim(1e-6,1)
+    plt.xlim(1.9,3.3)
+    plt.xlabel('$E_{p}$ (MeV)')
+    plt.ylabel('Cross-Section (barns/sr)')
+    plt.title('$^{27}$Al($\\mathrm{p,\\gamma \\alpha_{1}}$)$^{24}$Mg\t%s$^{\circ}$'%angle[det])
+    plt.savefig('crossPlots/A1/a1_%s.png'%detectors[det],dpi=300)
 
     # SAVE YIELDS TO EXCEL TO MANUALLY PRUNE BAD RUNS LATER
     df = pd.DataFrame(data=a1Yield[maskDet],index=a1Eproton[maskDet],columns=['Yield'])
     df = df.assign(Yield_err=pd.Series(a1Yield_err[maskDet],index=df.index).values)
     df.to_csv('yieldFiles/A1/a1_%s.csv'%detectors[det])
     df.to_excel('yieldFiles/A1/a1_%s.xlsx'%detectors[det])
+exit()
+with open("rMatrix/27Al_rMatrix_a1_allAngles.dat","w") as f:
+    for loop in range(len(a1Cross)):
+        printOut= '%f \t %d \t %.8f \t %.8f \n' %(a1Eproton[loop],Angle[loop],a1Cross[loop],a1Cross_err[loop])
+        f.write(printOut)
 
-# with open("rMatrix_a1.dat","w") as f:
-#     for loop in range(len(a1Cross)):
-#         printOut= '%f \t %d \t %.8f \t %.8f \n' %(a1Eproton[loop],Angle[loop],a1Cross[loop],a1Cross_err[loop])
-#         f.write(printOut)
 
 
-
-"""
-f = open("rMatrix/rMatrix_a1.dat","w")
+# """
+f = open("rMatrix/27Al_rMatrix_a1.dat","w")
 f.close()
-
 for ang in AnglesList:
     _a1Eproton = []
     _Angle = []
@@ -495,40 +539,54 @@ for ang in AnglesList:
         if ang == '0':
             # print(a1Cross[x*13+6])
             _Angle.append(Angle[x*13+6])
-            _a1Cross.append(a1Cross[x*13+6])
+            cross = a1Cross[x*13+6]
             err = a1Cross_err[x*13+6]
+            cross,err = check(cross,err)
+            _a1Cross.append(cross)
             _a1Cross_err.append( (err**2+(.05*_a1Cross[-1])**2)**.5 ) # inflate errorbar
         elif ang == '15':
             _Angle.append( (abs(Angle[x*13+5])+abs(Angle[x*13+7]))/2 )
-            _a1Cross.append( (a1Cross[x*13+5]+a1Cross[x*13+7])/2 )
+            cross = (a1Cross[x*13+5]+a1Cross[x*13+7])/2
             err = (a1Cross_err[x*13+5]**2+a1Cross_err[x*13+7]**2)**.5
+            cross,err = check(cross,err)
+            _a1Cross.append(cross)
             _a1Cross_err.append( (err**2+(.05*_a1Cross[-1])**2)**.5 )
         elif ang == '30':
             _Angle.append( int( (abs(Angle[x*13+4])+abs(Angle[x*13+8]))/2 ) )
-            _a1Cross.append( (a1Cross[x*13+4]+a1Cross[x*13+8])/2 )
+            cross = (a1Cross[x*13+4]+a1Cross[x*13+8])/2
             err = (a1Cross_err[x*13+4]**2+a1Cross_err[x*13+8]**2)**.5
+            cross,err = check(cross,err)
+            _a1Cross.append(cross)
             _a1Cross_err.append( (err**2+(.05*_a1Cross[-1])**2)**.5 )
         elif ang == '45':
             _Angle.append( int( (abs(Angle[x*13+3])+abs(Angle[x*13+9]))/2 ) )
-            _a1Cross.append( (a1Cross[x*13+3]+a1Cross[x*13+9])/2 )
+            cross = (a1Cross[x*13+3]+a1Cross[x*13+9])/2
             err = (a1Cross_err[x*13+3]**2+a1Cross_err[x*13+9]**2)**.5
+            cross,err = check(cross,err)
+            _a1Cross.append(cross)
             _a1Cross_err.append( (err**2+(.05*_a1Cross[-1])**2)**.5 )
         elif ang == '90':
             _Angle.append( int( (abs(Angle[x*13+2])+abs(Angle[x*13+10])) )/2 )
-            _a1Cross.append( (a1Cross[x*13+2]+a1Cross[x*13+10])/2 )
+            cross = (a1Cross[x*13+2]+a1Cross[x*13+10])/2
             err = (a1Cross_err[x*13+2]**2+a1Cross_err[x*13+10]**2)**.5
+            cross,err = check(cross,err)
+            _a1Cross.append(cross)
             _a1Cross_err.append( (err**2+(.05*_a1Cross[-1])**2)**.5 )
         elif ang == '105':
             # _Angle.append( int( (abs(Angle[x*13+1])+abs(Angle[x*13+11]))/2 ) )
             _Angle.append( int( 75 ) )
-            _a1Cross.append( (a1Cross[x*13+1]+a1Cross[x*13+11])/2 )
+            cross = (a1Cross[x*13+1]+a1Cross[x*13+11])/2
             err = (a1Cross_err[x*13+1]**2+a1Cross_err[x*13+11]**2)**.5
+            cross,err = check(cross,err)
+            _a1Cross.append(cross)
             _a1Cross_err.append( (err**2+(.05*_a1Cross[-1])**2)**.5 )
         elif ang == '120':
             # _Angle.append( int( (abs(Angle[x*13])+abs(Angle[x*13+12]))/2 ) )
             _Angle.append( int( 60 ) )
-            _a1Cross.append( (a1Cross[x*13]+a1Cross[x*13+12])/2 )
+            cross = (a1Cross[x*13]+a1Cross[x*13+12])/2
             err = (a1Cross_err[x*13]**2+a1Cross_err[x*13+12]**2)**.5
+            cross,err = check(cross,err)
+            _a1Cross.append(cross)
             _a1Cross_err.append( (err**2+(.05*_a1Cross[-1])**2)**.5 )
 
 
@@ -557,10 +615,12 @@ for ang in AnglesList:
     plt.savefig('crossSection/A1/a1_%s.png'%ang,dpi=300)
     plt.clf()
 
-    with open("rMatrix/rMatrix_a1.dat","a") as f:
+
+    with open("rMatrix/27Al_rMatrix_a1.dat","a") as f:
         for loop in range(867):
             printOut= '%f \t %d \t %.8f \t %.8f \n' %(_a1Eproton[loop],_Angle[loop],_a1Cross[loop],_a1Cross_err[loop])
             f.write(printOut)
+
 # """
 
 print('DONE!')

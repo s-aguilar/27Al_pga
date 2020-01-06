@@ -25,19 +25,15 @@ using std::vector;
 #include "calibration/fitFunctions.h"
 
 
-// if 1, use local, if 0 use CRC
-int loc = 0;
+// if true use local, false use CRC
+bool loc = false;
 
-// if 1, save plots, if 0 don't save
-int plot = 0;
+// if true save plots, false don't save
+bool plot = true;
 
 
 void peakFitter(TFile *TFitOut, const char *fileName, const char *detector,
 	int detLoop){
-
-
-	// Reset global variables
-	gROOT->Reset();
 
 	// Get root file
 	TFile *fyield = new TFile(fileName);
@@ -82,12 +78,10 @@ void peakFitter(TFile *TFitOut, const char *fileName, const char *detector,
 	hyield->Draw();
 	hyield->SetStats(kFALSE);
 
-
 	// ATTEMPT TO FIT
 	try {
-
 		string runNum = fileName;
-		if (loc==1) runNum = runNum.substr(8,4);
+		if (loc) runNum = runNum.substr(8,4);
 		else runNum = runNum.substr(70,4);
 
 		// .Get() returns the contained pointer to TFitResult. Dereference it with "*""
@@ -100,8 +94,11 @@ void peakFitter(TFile *TFitOut, const char *fileName, const char *detector,
 		area_err = fitResults.Error(3);
 		chi2NDF = fitResults.Chi2()/fitResults.Ndf();
 		sig1 = fitResults.Parameter(5);
-		isValid = fitResults.IsValid();
-		status = fitResults.Status();
+		isValid = fitResults.IsValid();	// Check if fit was succesful, minimum
+										// was found, return type bool
+
+		status = fitResults.Status();	// Return status code of error minimization
+										// This is minimizer dependent!
 
 
 		// The charge is integrated charge of proton which is 1
@@ -110,7 +107,7 @@ void peakFitter(TFile *TFitOut, const char *fileName, const char *detector,
 
 		string detNum = detector;
 
-		if(plot==1){
+		if(plot){
 			c0->SaveAs(Form("Yields/A1/run_%s/%s_Fit.pdf",runNum.c_str(),detNum.c_str()));
 			c0->SaveAs(Form("Yields/A1/det-%i/run_%s_Fit.pdf",detLoop,runNum.c_str()));
 		}
@@ -125,7 +122,12 @@ void peakFitter(TFile *TFitOut, const char *fileName, const char *detector,
 
 	c0->Clear();
 	fyield->Close();
+
+	// Delete objects on the heap
 	delete c0;
+	c0 = nullptr;
+	delete fyield;
+	fyield = nullptr;
 }
 
 
@@ -151,24 +153,24 @@ void a1Yields_pa(){
 		<<"Status"<<","<<"Q_int"<<"\n";
 	myfile.close();
 
-	// try {
-	// 	gSystem->Exec(Form("mkdir Yields"));
-	// 	gSystem->Exec(Form("mkdir Yields/A1"));
-	// 	gSystem->Exec(Form("mkdir Yields/P1"));
-	// 	gSystem->Exec(Form("mkdir Yields/P2"));
-	// }catch(...){}
-	// try {
-	// 	gSystem->Exec(Form("mkdir TFitResult"));
-	// 	gSystem->Exec(Form("mkdir TFitResult/A1"));
-	// 	gSystem->Exec(Form("mkdir TFitResult/P1"));
-	// 	gSystem->Exec(Form("mkdir TFitResult/P2"));
-	// }catch(...){}
-	// // Make directory to visually inspect the fits
-	// for(int ii = 0; ii<13; ii++){
-	// 	try {
-	// 		gSystem->Exec(Form("mkdir Yields/A1/det-%i",ii));
-	// 	}catch(...){}
-	// }
+	try {
+		gSystem->Exec(Form("mkdir Yields"));
+		gSystem->Exec(Form("mkdir Yields/A1"));
+		gSystem->Exec(Form("mkdir Yields/P1"));
+		gSystem->Exec(Form("mkdir Yields/P2"));
+	}catch(...){}
+	try {
+		gSystem->Exec(Form("mkdir TFitResult"));
+		gSystem->Exec(Form("mkdir TFitResult/A1"));
+		gSystem->Exec(Form("mkdir TFitResult/P1"));
+		gSystem->Exec(Form("mkdir TFitResult/P2"));
+	}catch(...){}
+	// Make directory to visually inspect the fits
+	for(int ii = 0; ii<13; ii++){
+		try {
+			gSystem->Exec(Form("mkdir Yields/A1/det-%i",ii));
+		}catch(...){}
+	}
 
 
 	// Loop through runs: 97-107
@@ -181,7 +183,7 @@ void a1Yields_pa(){
 	int runStart = 97 ;
 	int upToRun;
 
-	if (loc==1) upToRun = 108;	// 108
+	if (loc) upToRun = 108;	// 108
 	else upToRun = 1177;		// 1177
 
 	for(int i=runStart;i<upToRun;i++){
@@ -227,16 +229,16 @@ void a1Yields_pa(){
 		else if(i==686) continue;
 		else if(i==690) continue;
 		else if(i==727) continue;
-		else if(i==863) continue; // BG
+		// else if(i==863) continue; // BG
 		else if(i==887) continue;
 		else if(i==922) continue;
-		else if(i==939) continue; // BG
+		// else if(i==939) continue; // BG
 		else if(i==942) continue;
 		// else if(i>=808 && i<=952) continue;	// TUNE PROBLEM IN P1 channel
 		else if(i>=953 && i<=959) continue;
 		else if(i==980) continue;
 		else if(i==984) continue;
-		else if(i==997) continue;	// Rescan of tune issue, 1 point jumps up
+		// else if(i==997) continue;	// Rescan of tune issue, 1 point jumps up
 		else if(i==1003) continue;
 		else if(i==1148) continue;
 		else if(i==1149) continue;
@@ -254,9 +256,9 @@ void a1Yields_pa(){
 		runNum_TString += i;	// Should be format 0001 -> 9999
 		const char *runNum_String = (const char*)runNum_TString;
 
-		// try {
-		// 	gSystem->Exec(Form("mkdir Yields/A1/run_%s",runNum_String));
-		// }catch(...){}
+		try {
+			gSystem->Exec(Form("mkdir Yields/A1/run_%s",runNum_String));
+		}catch(...){}
 
 		// Save TFitResult results.
 		TFile *TFitFiles = new TFile(Form("TFitResult/A1/run_%s.root",runNum_String),"RECREATE");
@@ -264,7 +266,7 @@ void a1Yields_pa(){
 		// Loop through detectors on board
 		for(int j=0;j<13;j++){
 
-			if (loc==1) files = Form("run/run_%s.root",runNum_String);
+			if (loc) files = Form("run/run_%s.root",runNum_String);
 			else files = Form("/afs/crc.nd.edu/group/nsl/activetarget/data/27Al_p_March_2019/run/run_%s.root",runNum_String);
 
 			detect = Form("det%d",j);
@@ -276,6 +278,10 @@ void a1Yields_pa(){
 		// Write all TObjects in memory (TFitResult) to TFile
 		TFitFiles->Write();
 		TFitFiles->Close();
+
+		// Delete objects on the heap
+		delete TFitFiles;
+		TFitFiles = nullptr;
 
 		cout << Form("Fitting run_%s complete",runNum_String) << endl;
 		fileNum+=1;

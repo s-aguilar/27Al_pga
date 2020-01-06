@@ -164,10 +164,10 @@ for xx in range(13):
 
     # Normal plot
     plt.clf()
-    z = interp1d(e_gam,split_eff[xx].flatten(),fill_value="extrapolate")
+    z = interp1d(e_gam,split_eff[xx].ravel(),fill_value="extrapolate")
     fit_y = z(fit_x)
     plt.plot(fit_x,fit_y,color='r',alpha=.75)
-    plt.errorbar(e_gam,split_eff[xx],yerr=split_effErr[xx],fmt='.')
+    plt.errorbar(e_gam,split_eff[xx].ravel(),yerr=split_effErr[xx].ravel(),fmt='.')
     plt.xlim(600,2000)
     plt.xlabel('Energy (KeV)')
     plt.ylabel('Efficiency')
@@ -180,10 +180,10 @@ for xx in range(13):
     plt.clf()
     plt.yscale('log')
     # plt.xscale('log')
-    z = interp1d(e_gam,split_eff[xx].flatten(),fill_value="extrapolate")
+    z = interp1d(e_gam,split_eff[xx].ravel(),fill_value="extrapolate")
     fit_y = z(fit_x)
     plt.plot(fit_x,fit_y,color='r',alpha=.75)
-    plt.errorbar(e_gam,split_eff[xx],yerr=split_effErr[xx],fmt='.')
+    plt.errorbar(e_gam,split_eff[xx].ravel(),yerr=split_effErr[xx].ravel(),fmt='.')
     plt.xlim(600,2000)
     # plt.xticks((100,1000,10000),labelsx)
     plt.xlabel('Energy (KeV)')
@@ -210,8 +210,8 @@ while ii <= 5:
 
     # Normal plot
     plt.clf()
-    plt.errorbar(e_gam,split_eff[ii],yerr=split_effErr[ii],fmt='.',color='b',label='Beam Right')
-    plt.errorbar(e_gam,split_eff[12-ii],yerr=split_effErr[12-ii],fmt='.',color='r',label='Beam Left')
+    plt.errorbar(e_gam,split_eff[ii].ravel(),yerr=split_effErr[ii].ravel(),fmt='.',color='b',label='Beam Right')
+    plt.errorbar(e_gam,split_eff[12-ii].ravel(),yerr=split_effErr[12-ii].ravel(),fmt='.',color='r',label='Beam Left')
     plt.xlabel('Energy (KeV)')
     plt.ylabel('Efficiency')
     plt.grid(b=True,which='both',axis='y',alpha=.5)
@@ -224,8 +224,8 @@ while ii <= 5:
     plt.clf()
     plt.yscale('log')
     # plt.xscale('log')
-    plt.errorbar(e_gam,split_eff[ii],yerr=split_effErr[ii],fmt='.',color='b',label='Beam Right')
-    plt.errorbar(e_gam,split_eff[12-ii],yerr=split_effErr[12-ii],fmt='.',color='r',label='Beam Left')
+    plt.errorbar(e_gam,split_eff[ii].ravel(),yerr=split_effErr[ii].ravel(),fmt='.',color='b',label='Beam Right')
+    plt.errorbar(e_gam,split_eff[12-ii].ravel(),yerr=split_effErr[12-ii].ravel(),fmt='.',color='r',label='Beam Left')
     plt.xlabel('Energy (KeV)')
     plt.yticks((.0001,.001,.01),labels)
     plt.ylim(.0001,.001)
@@ -286,7 +286,7 @@ p1eff = []
 p2eff = []
 a1eff = []
 for zz in range(13):
-    z = interp1d(e_gam,split_eff[zz].flatten(),fill_value="extrapolate")
+    z = interp1d(e_gam,split_eff[zz].ravel(),fill_value="extrapolate")
     fit_y = z(fit_x)
     p1eff.append(fit_y[0])
     p2eff.append(fit_y[1])
@@ -299,9 +299,13 @@ for zz in range(13):
 #     p2eff.append(eff_peak[x][1])
 #     a1eff.append(eff_peak[x][2])
 
-detName = list(detName)*867
-angle = list(angle)*867
-dd = {'Det':detName,'Angle':angle,'p1':p1eff*867,'p2':p2eff*867,'a1':a1eff*867}
+# detName = list(detName)*867
+# angle = list(angle)*867
+# dd = {'Det':detName,'Angle':angle,'p1':p1eff*867,'p2':p2eff*867,'a1':a1eff*867}
+detName = list(detName)*1009
+angle = list(angle)*1009
+dd = {'Det':detName,'Angle':angle,'p1':p1eff*1009,'p2':p2eff*1009,'a1':a1eff*1009}
+
 dff = pd.DataFrame(data=dd)
 
 # Save new DataFrame to a csv file

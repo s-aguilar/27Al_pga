@@ -93,6 +93,8 @@ double triple_gauss_same_width_func(double*x, double *par){
 	norm3 = par[4]
 	mean3 = par[5]
 	sigma3 = par[6]
+
+	Have hard coded some values to constrain the fit
 	*/
 
 	double g1 = par[0]*TMath::Gaus(x[0],par[1],par[2],kTRUE);
