@@ -21,6 +21,40 @@ def check(x,x_err):
     #if x_err >= x: return x_err
     else: return x,x_err
 
+
+# Averages out run by run the left and right detectors, handles when there is
+# only a right or left detector by just skipping that point.
+# PRETTY SLOW
+def average(df,runs):
+    def averager(x,y,angie):
+        try:
+            left = temp.loc[temp['Detector'] == x,'Yield effcor'].values[0]
+            left_err = temp.loc[temp['Detector'] == x,'Yield err effcor'].values[0]
+        except: return
+        try:
+            right = temp.loc[temp['Detector'] == y,'Yield effcor'].values[0]
+            right_err = temp.loc[temp['Detector'] == y,'Yield err effcor'].values[0]
+        except: return
+
+        yieldList.append( (left+right)/2. )
+        yield_errList.append( (left_err**2 + right_err**2) ** .5 )
+        energyList.append(temp['Ep'].values[0]/1000.)    # convert to MeV
+        angleList.append(angie)
+
+    for _ in runs[:]:
+        temp = df.query('Run == %s'%_)
+        # print(temp.head(3))
+        # print(temp.query('(Detector == 0) or (Detector == 12)'))
+        averager(6,6,0)
+        averager(5,7,15)
+        averager(4,8,30)
+        averager(3,9,45)
+        averager(0,12,60)
+        averager(1,11,75)
+        averager(2,10,90)
+
+
+
 # print('Attempting to create required directories: ')
 # try:
 #     os.mkdir('rMatrix')
@@ -41,18 +75,17 @@ detectors = ['det0','det1','det2','det3','det4','det5','det6','det7','det8',
              'det9','det10','det11','det12']
 
 # Read in the data into dataframes
-dfeff = pd.read_csv('calibration/csv/detectorEfficiencies.csv')
+# dfeff = pd.read_csv('calibration/csv/detectorEfficiencies.csv')
 # df1 = pd.read_csv('Yields/P1/p1Yields.csv')
 # df2 = pd.read_csv('Yields/P2/p2Yields.csv')
 df3 = pd.read_excel('Yields/A1/a1Yields.xlsx',index_col=[0])
 # print(df3.head())
 
 
-
 # effp1 = dfeff['p1'].values
 # effp2 = dfeff['p2'].values
-effa1 = dfeff['a1'].values
-Angle = dfeff['Angle'].values
+# effa1 = dfeff['a1'].values
+# Angle = dfeff['Angle'].values
 
 # Angle (deg) for each detector, negative is beam left, positive is beam right
 #                 00  01 02 03 04 05 06 07  10  11  12   13   14
@@ -71,25 +104,40 @@ barn_conv = 1/(1e-24)
 solidAngle = 4*np.pi
 
 
-# Example how to drop a specific Run
+# Example how to drop all data of a specific Run
 # df3.query('Run != 97')
+
+
+# Organize dataframe by energy and then by detector number
+df3 = df3.sort_values(by=['Ep','Detector'])
 
 
 # Cut low stats data
 mask3Fit = ((df3['Area'] > 200)) #########
+cut_df3 = df3.query('Area > 200')
 
-df3 = df3.sort_values(by=['Ep','Detector'])
 
-# mask3Fit creates problems.... it removes bad data but then I need to average out each detector by angle
-# need to find unpaired detectors and pop those values too
-print(df3.head(20))
+# Array of unique run numbers in preserved order
+runArr = pd.unique(cut_df3.index.values)
 
-a1Det = df3['Detector'].values
-print(a1Det[:20])
+
+# Average yields of L-R detectors
+energyList = []
+yieldList = []
+yield_errList = []
+angleList = []
+average(cut_df3,runArr) #### VERY INEFFICIENT FUNCTION CALL
+averaged_df3 = pd.DataFrame(data={'Ep':energyList, 'Yield effcor':yieldList, 'Yield err effcor':yield_errList, 'Angle':angleList})
+averaged_df3.set_index(['Ep'],inplace=True)
+
+
+# a1Yield = averaged_df3['Yield'].values/ q_corr
+# a1Yield_err = averaged_df3['Yield err'].values/ q_corr
+
 exit()
 
-a1Yield = df3['Yield'].values/ q_corr
-a1Yield_err = df3['Yield err'].values/ q_corr
+
+
 
 a1Yield_effcor = a1Yield / effa1[0:len(a1Yield)]
 a1Yield_err_effcor = a1Yield_err / effa1[0:len(a1Yield)]
@@ -97,8 +145,8 @@ a1Yield_err_effcor = a1Yield_err / effa1[0:len(a1Yield)]
 a1Cross = a1Yield_effcor / numOfTarget * barn_conv / solidAngle
 a1Cross_err = a1Yield_err_effcor / numOfTarget* barn_conv / solidAngle
 
-a1Fit = df3['IsValid'].values
-a1Eproton = df3['Ep'].values/1000    # Convert keV to MeV
+a1Fit = averaged_df3['IsValid'].values
+a1Eproton = averaged_df3['Ep'].values/1000    # Convert keV to MeV
 
 # IsValid == 1 -> Good Fit
 # IsValid == 0 -> Bad Fit
