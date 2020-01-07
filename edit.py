@@ -1,3 +1,11 @@
+'''
+This script reads in the yield files produced from `xxyields_pa.C` as well as the
+experimental online logbook file. A pandas DataFrame is used, and modified to
+have the yields, the efficiency corrected yields, run number, and beam energy.
+The DataFrame is then `cleaned` for bad data and when finalized it is then
+saved to an excel file
+'''
+
 import numpy as np
 import pandas as pd
 
@@ -5,7 +13,13 @@ import pandas as pd
 # df1 = pd.read_csv('Yields/P1/_P1.csv')
 # df2 = pd.read_csv('Yields/P2/_P2.csv')
 df3 = pd.read_csv('Yields/A1/_A1.csv')
+
+# Read online logbook
 df = pd.read_excel('27Al_p_a.xlsx',sheet_name='Sheet3')
+
+# Read in efficiencies
+dfeff = pd.read_csv('calibration/csv/detectorEfficiencies.csv')
+
 
 pRun = df['Run'].values
 pEproton = df['Ep (keV)'].values
@@ -47,10 +61,27 @@ for ch in channels:
     chan = chan.set_index(['Run'])
 
 
-    # Pre-Cleaning
-    ## Drop data where the conditions are not met
+    # Efficiency correct the yields and append to DataFrame
+    eff = dfeff[ch].values
+
+    q_e = 1.602e-19
+    scale = 1e-8    # 10^-8 C/pulse
+    q_corr = scale/(q_e)
+
+    # Convert from pulses to Coulombs and apply efficieny corrections
+    yield_effcor = chan['Yield'].values/ q_corr / eff[0:len(chan['Yield'].values)]
+    yield_err_effcor = chan['Yield err'].values/ q_corr / eff[0:len(chan['Yield'].values)]
+
+    chan = chan.assign(Yield_effcor=pd.Series(yield_effcor,index=chan.index).values)
+    chan = chan.assign(Yield_err_effcor=pd.Series(yield_err_effcor,index=chan.index).values)
+    chan = chan.rename(columns={'Yield_effcor': 'Yield effcor', 'Yield_err_effcor': 'Yield err effcor'})
+
+
+    # Pre-Cleaning (Drop data where the conditions are not met)
 
     # Drop points with bad fits
+    # IsValid == 1 -> Good Fit
+    # IsValid == 0 -> Bad Fit
     print('\n\nChecking if isValid is ever bad:')
     print(chan.query('IsValid != 1'))
     print('\nChecking if Status is ever bad:')
