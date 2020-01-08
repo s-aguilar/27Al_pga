@@ -38,7 +38,7 @@ def average(df,runs):
 
         yieldList.append( (left+right)/2. )
         yield_errList.append( (left_err**2 + right_err**2) ** .5 )
-        energyList.append(temp['Ep'].values[0]/1000.)    # convert to MeV
+        energyList.append(temp['Ep'].values[0]/1000.)    # convert keV to MeV
         angleList.append(angie)
 
     for _ in runs[:]:
@@ -71,6 +71,7 @@ def average(df,runs):
 # else:
 #     print('DONE!')
 
+
 detectors = ['det0','det1','det2','det3','det4','det5','det6','det7','det8',
              'det9','det10','det11','det12']
 
@@ -79,29 +80,11 @@ detectors = ['det0','det1','det2','det3','det4','det5','det6','det7','det8',
 # df1 = pd.read_csv('Yields/P1/p1Yields.csv')
 # df2 = pd.read_csv('Yields/P2/p2Yields.csv')
 df3 = pd.read_excel('Yields/A1/a1Yields.xlsx',index_col=[0])
-# print(df3.head())
 
-
-# effp1 = dfeff['p1'].values
-# effp2 = dfeff['p2'].values
-# effa1 = dfeff['a1'].values
-# Angle = dfeff['Angle'].values
 
 # Angle (deg) for each detector, negative is beam left, positive is beam right
-#                 00  01 02 03 04 05 06 07  10  11  12   13   14
+#                 00  01 02 03 04 05 06 07  08  09  10   11   12
 angle = np.array([120,105,90,45,30,15,0,-15,-30,-45,-90,-105,-120])
-
-AnglesList=['0','15','30','45','90','105','120']
-
-
-thickness = 5/(1e6)                             # 5ug/cm^2  maybe 5.7 check this ###################################
-numOfTarget = thickness*(1/26.981)*6.022e23     # thickness * (mol/27 g) * N_a
-
-q_e = 1.602e-19
-scale = 1e-8    # 10^-8 C/pulse
-q_corr = scale/(q_e)
-barn_conv = 1/(1e-24)
-solidAngle = 4*np.pi
 
 
 # Example how to drop all data of a specific Run
@@ -112,14 +95,93 @@ solidAngle = 4*np.pi
 df3 = df3.sort_values(by=['Ep','Detector'])
 
 
-# Cut low stats data
-mask3Fit = ((df3['Area'] > 200)) #########
+# Cut low stats data (PLAY AROUND WITH THESE CUTS)
+mask3Fit = ((df3['Area'] > 200))
 cut_df3 = df3.query('Area > 200')
+
+cut_a1Yield = cut_df3['Yield'].values
+cut_a1Yield_err = cut_df3['Yield err'].values
+
+cut_a1Yield_effcor = cut_df3['Yield effcor'].values
+cut_a1Yield_err_effcor = cut_df3['Yield err effcor'].values
+cut_a1Eproton = cut_df3['Ep'].values/1000.    # convert MeV to keV
+cut_angle = cut_df3['Angle'].values
+
+
+# Compute Cross-Section
+solidAngle = 4*np.pi
+barn_conv = 1e-24                               # Conversion of cm^2 to barn
+thickness = 5/(1e6)                             # 5ug/cm^2  maybe 5.7 check this ###################################
+numOfTarget = thickness*(1/26.981)*6.022e23     # thickness * (mol/27 g) * N_a (units of cm^2)
+numOfTarget *= barn_conv                        # Units of barn
+
+cut_a1Cross = cut_a1Yield_effcor / numOfTarget / solidAngle
+cut_a1Cross_err = cut_a1Yield_err_effcor / numOfTarget / solidAngle
+
+"""
+# NOT AVERAGED
+# Look at Before and After effect of cuts on the raw yield, and plot the post
+# cut, efficiency corrected cross section per detector
+for det in range(13):
+
+    # Clear any other figure
+    plt.clf()
+
+    # BEFORE and AFTER cuts on raw yield per detector
+    maskDet = ((df3['Detector']==det))
+    cut_maskDet = ((cut_df3['Detector']==det))
+
+    a1Yield = df3['Yield'].values
+    a1Yield_err = df3['Yield err'].values
+    a1Eproton = df3['Ep'].values/1000.    # convert MeV to keV
+
+    plt.errorbar(a1Eproton[maskDet],a1Yield[maskDet],yerr=a1Yield_err[maskDet],fmt='b.',markersize='2',label='Before')
+    plt.errorbar(cut_a1Eproton[cut_maskDet],cut_a1Yield[cut_maskDet],yerr=cut_a1Yield_err[cut_maskDet],fmt='k.',markersize='2',label='After')
+
+    plt.yscale('log')
+    plt.ylim(1e-6,1)
+    plt.xlim(2.05,3.3)
+    # plt.xlim(2.35,3.3)
+    plt.xlabel('$E_{p}$ (MeV)',fontsize=14)
+    plt.ylabel('Yield (arb units)', fontsize=14)
+    plt.title('$^{27}$Al($\\mathrm{p,\\alpha_{1}\\gamma }$)$^{24}$Mg\t%s$^{\circ}$'%angle[det],fontsize=20)
+    plt.legend()
+    plt.savefig('plots/notAveraged/yield/A1/a1_%s.png'%detectors[det],dpi=100)
+
+
+    # Clean up
+    plt.clf()
+
+    # Plot the post cut, efficiency corrected cross section per detector
+    cut_maskDet = ((cut_df3['Detector']==det))
+
+    # plt.plot(cut_a1Eproton[maskDet],cut_a1Cross[maskDet])
+    plt.errorbar(cut_a1Eproton[cut_maskDet],cut_a1Cross[cut_maskDet],yerr=cut_a1Cross_err[cut_maskDet],fmt='k.',markersize='2')
+
+    plt.yscale('log')
+    plt.ylim(1e-6,1)
+    plt.xlim(2.05,3.3)
+    plt.xlabel('$E_{p}$ (MeV)')
+    plt.ylabel('Differential Cross-Section (barns/sr)')
+    plt.title('$^{27}$Al($\\mathrm{p,\\gamma \\alpha_{1}}$)$^{24}$Mg\t%s$^{\circ}$'%angle[det])
+    plt.savefig('plots/notAveraged/cross/A1/a1_%s.png'%detectors[det],dpi=300)
+
+    # # SAVE YIELDS TO EXCEL TO MANUALLY PRUNE BAD RUNS LATER
+    # df = pd.DataFrame(data=a1Yield[maskDet],index=a1Eproton[maskDet],columns=['Yield'])
+    # df = df.assign(Yield_err=pd.Series(a1Yield_err[maskDet],index=df.index).values)
+    # df.to_csv('yieldFiles/A1/a1_%s.csv'%detectors[det])
+    # df.to_excel('yieldFiles/A1/a1_%s.xlsx'%detectors[det])
+
+with open("rMatrix/27Al_rMatrix_a1_allAngles.dat","w") as f:
+    for loop in range(len(cut_a1Cross)):
+        printOut= '%f \t %d \t %.8f \t %.8f \n' %(cut_a1Eproton[loop],cut_angle[loop],cut_a1Cross[loop],cut_a1Cross_err[loop])
+        f.write(printOut)
+# """
+
 
 
 # Array of unique run numbers in preserved order
 runArr = pd.unique(cut_df3.index.values)
-
 
 # Average yields of L-R detectors
 energyList = []
@@ -128,33 +190,44 @@ yield_errList = []
 angleList = []
 average(cut_df3,runArr) #### VERY INEFFICIENT FUNCTION CALL
 averaged_df3 = pd.DataFrame(data={'Ep':energyList, 'Yield effcor':yieldList, 'Yield err effcor':yield_errList, 'Angle':angleList})
-averaged_df3.set_index(['Ep'],inplace=True)
+# averaged_df3.set_index(['Ep'],inplace=True)
 
 
-# a1Yield = averaged_df3['Yield'].values/ q_corr
-# a1Yield_err = averaged_df3['Yield err'].values/ q_corr
+# Finalized cut and averaged data
+a1Yield_effcor = averaged_df3['Yield effcor'].values
+a1Yield_err_effcor = averaged_df3['Yield err effcor'].values
+a1Eproton = averaged_df3['Ep'].values    # keV
+a1Angle = averaged_df3['Angle'].values
+
+
+# Compute Cross-Section of finalized cut and averaged data
+a1Cross = a1Yield_effcor / numOfTarget / solidAngle
+a1Cross_err = a1Yield_err_effcor / numOfTarget / solidAngle
+
+for ang in np.array([0,15,30,45,60,75,90]):
+    # Make the Cross-Section plot of finalized cut and averaged data
+    plt.clf()
+
+    mask = ((averaged_df3['Angle']==ang))
+
+    # plt.plot(a1Eproton,a1Cross)
+    plt.errorbar(a1Eproton[mask],a1Cross[mask],yerr=a1Cross_err[mask],fmt='k.',markersize='2')
+    plt.yscale('log')
+    plt.ylim(1e-6,1)
+    plt.xlim(2.05,3.3)
+    plt.xlabel('$E_{p}$ (MeV)')
+    plt.ylabel('Differential Cross-Section (barns/sr)')
+    plt.title('a1 %s$^{\circ}$'%ang)
+    plt.savefig('plots/averaged/finalCrossSection/A1/a1_%s.png'%ang,dpi=300)
+    plt.clf()
+
+with open("rMatrix/27Al_rMatrix_a1.dat","a") as f:
+    for loop in range(len(a1Cross)):
+        printOut= '%f \t %d \t %.8f \t %.8f \n' %(a1Eproton[loop],a1Angle[loop],a1Cross[loop],a1Cross_err[loop])
+        f.write(printOut)
+
 
 exit()
-
-
-
-
-a1Yield_effcor = a1Yield / effa1[0:len(a1Yield)]
-a1Yield_err_effcor = a1Yield_err / effa1[0:len(a1Yield)]
-
-a1Cross = a1Yield_effcor / numOfTarget * barn_conv / solidAngle
-a1Cross_err = a1Yield_err_effcor / numOfTarget* barn_conv / solidAngle
-
-a1Fit = averaged_df3['IsValid'].values
-a1Eproton = averaged_df3['Ep'].values/1000    # Convert keV to MeV
-
-# IsValid == 1 -> Good Fit
-# IsValid == 0 -> Bad Fit
-#
-# Mask for which the fit was bad
-# mask3Fit = ((df3['Area'] > 250) & (df3['IsValid'] == 1))
-
-
 # # Sort by energy, keeping others consistent! DEPRECATED
 # ind = a1Eproton.argsort()
 # a1Eproton = a1Eproton[ind]
@@ -164,58 +237,12 @@ a1Eproton = averaged_df3['Ep'].values/1000    # Convert keV to MeV
 # a1Yield_err = a1Yield_err[ind]
 
 
-for det in range(len(detectors)):
-
-    # Clear any other figure
-    plt.clf()
-
-    maskDet = ((df3['Detector']==detectors[det]))
-    print(len(df3))
-    print(maskDet)
-    exit()
-
-    plt.errorbar(a1Eproton[maskDet],a1Cross[maskDet],yerr=a1Cross_err[maskDet],fmt='b.',markersize='2')
-    plt.yscale('log')
-    plt.ylim(1e-6,1)
-    # plt.xlim(1.9,3.3)
-    plt.xlim(2.35,3.3)
-    plt.xlabel('$E_{p}$ (MeV)',fontsize=14)
-    plt.ylabel('Differential Cross-Section (barns/sr)', fontsize=14)
-    plt.title('$^{27}$Al($\\mathrm{p,\\alpha_{1}\\gamma }$)$^{24}$Mg\t%s$^{\circ}$'%angle[det],fontsize=20)
-    plt.savefig('yieldPlots/A1/a1_%s.png'%detectors[det],dpi=100)
-
-    # Clean up
-    plt.clf()
-
-    maskDet = ((df3['Detector']==detectors[det]) & mask3Fit)
-    plt.plot(a1Eproton[maskDet],a1Cross[maskDet])
-    plt.errorbar(a1Eproton[maskDet],a1Cross[maskDet],yerr=a1Cross_err[maskDet],fmt='b.',markersize='2')
-    plt.errorbar(a1Eproton[maskDet],a1Yield[maskDet],yerr=a1Yield_err[maskDet],fmt='b.',markersize='2')
-    plt.yscale('log')
-    plt.ylim(1e-6,1)
-    plt.xlim(1.9,3.3)
-    plt.xlabel('$E_{p}$ (MeV)')
-    plt.ylabel('Cross-Section (barns/sr)')
-    plt.title('$^{27}$Al($\\mathrm{p,\\gamma \\alpha_{1}}$)$^{24}$Mg\t%s$^{\circ}$'%angle[det])
-    plt.savefig('crossPlots/A1/a1_%s.png'%detectors[det],dpi=300)
-
-    # SAVE YIELDS TO EXCEL TO MANUALLY PRUNE BAD RUNS LATER
-    df = pd.DataFrame(data=a1Yield[maskDet],index=a1Eproton[maskDet],columns=['Yield'])
-    df = df.assign(Yield_err=pd.Series(a1Yield_err[maskDet],index=df.index).values)
-    df.to_csv('yieldFiles/A1/a1_%s.csv'%detectors[det])
-    df.to_excel('yieldFiles/A1/a1_%s.xlsx'%detectors[det])
-exit()
-with open("rMatrix/27Al_rMatrix_a1_allAngles.dat","w") as f:
-    for loop in range(len(a1Cross)):
-        printOut= '%f \t %d \t %.8f \t %.8f \n' %(a1Eproton[loop],Angle[loop],a1Cross[loop],a1Cross_err[loop])
-        f.write(printOut)
 
 
-
-# """
+"""
 f = open("rMatrix/27Al_rMatrix_a1.dat","w")
 f.close()
-for ang in AnglesList:
+# for ang in AnglesList:
     _a1Eproton = []
     _Angle = []
     _a1Cross = []

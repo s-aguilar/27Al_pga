@@ -63,6 +63,8 @@ for ch in channels:
 
     # Efficiency correct the yields and append to DataFrame
     eff = dfeff[ch].values
+    angle = dfeff['Angle'].values
+    chan = chan.assign(Angle=pd.Series(angle[0:len(chan['Yield'].values)],index=chan.index).values)
 
     q_e = 1.602e-19
     scale = 1e-8    # 10^-8 C/pulse
@@ -114,6 +116,7 @@ for ch in channels:
 
     # Pre-Cleaning complete, drop columns (no longer needed)
     chan.drop(columns = ['IsValid','Status','Q_int'], inplace=True)
+    print('\n\nFinal form of DataFrame:')
     print(chan.head(5))
 
 
