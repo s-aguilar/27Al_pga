@@ -150,7 +150,7 @@ void a1Yields_pa(){
 	myfile.open ("Yields/A1/_A1.csv",std::ios::out);
 	myfile<<"Run"<<","<<"Detector"<<","<<"Yield"<<","<<"Yield err"<<","
 		<<"Area"<<","<<"Area err"<<","<<"sig1"<<","<<"X2NDF"<<","<<"IsValid"<<","
-		<<"Status"<<","<<"Q_int"<<"\n";
+		<<"Status"<<","<<"Q int"<<"\n";
 	myfile.close();
 
 	try {
