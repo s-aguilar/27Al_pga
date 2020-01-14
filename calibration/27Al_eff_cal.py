@@ -43,7 +43,7 @@ half_60Co = 5.2747          # years
 half_60Co *= 365*24*60*60   # seconds
 
 half_137Cs = 30.08
-half_137Cs *= 365*24*60*60
+half_137Cs *= 365.25*24*60*60
 
 
 # Calculate source activity  on date of experiment
@@ -114,7 +114,7 @@ plt.xlim(-125,125)
 plt.ylabel('Efficiency')
 plt.ylim(0,.0006)
 plt.title('$^{60}$Co - E$_{\\gamma}$ = 1173 keV - Efficiencies')
-plt.tight_layout()
+# plt.tight_layout()
 plt.savefig('effPlots/1173_angular_eff.png',dpi=300)
 
 plt.clf()
@@ -124,7 +124,7 @@ plt.xlim(-125,125)
 plt.ylabel('Efficiency')
 plt.ylim(0,.0006)
 plt.title('$^{60}$Co - E$_{\\gamma}$ = 1332 keV - Efficiencies')
-plt.tight_layout()
+# plt.tight_layout()
 plt.savefig('effPlots/1332_angular_eff.png',dpi=300)
 
 plt.clf()
@@ -134,7 +134,7 @@ plt.xlim(-125,125)
 plt.ylabel('Efficiency')
 plt.ylim(0,.0006)
 plt.title('$^{137}$Cs - E$_{\\gamma}$ = 661 keV - Efficiencies')
-plt.tight_layout()
+# plt.tight_layout()
 plt.savefig('effPlots/661_angular_eff.png',dpi=300)
 
 end_time = time.time()

@@ -1,4 +1,5 @@
 import os
+import time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -26,7 +27,7 @@ def average(df,runs):
 
         yieldList.append( (left+right)/2. )
         yield_errList.append( (left_err**2 + right_err**2) ** .5 )
-        energyList.append(np.longdouble(temp['Ep'].values[0])/np.longdouble(1000.))    # convert keV to MeV
+        energyList.append(temp['Ep'].values[0]/1000.)    # convert keV to MeV
         angleList.append(angie)
 
     # Loop through each run, averaging the left and right detectors
@@ -81,8 +82,8 @@ df3 = df3.sort_values(by=['Ep','Detector'])
 
 
 # Cut low stats data (PLAY AROUND WITH THESE CUTS)
-mask3Fit = ((df3['Area'] > 200))
-cut_df3 = df3.query('Area > 200')
+# cut_df3 = df3.query('Area > 0') # was 200
+cut_df3 = df3
 
 
 cut_a1Yield = cut_df3['Yield'].values
@@ -90,7 +91,7 @@ cut_a1Yield_err = cut_df3['Yield err'].values
 
 cut_a1Yield_effcor = cut_df3['Yield effcor'].values
 cut_a1Yield_err_effcor = cut_df3['Yield err effcor'].values
-cut_a1Eproton = np.longdouble(cut_df3['Ep'].values/1000.)    # convert MeV to keV
+cut_a1Eproton = cut_df3['Ep'].values/1000.    # convert MeV to keV
 cut_angle = cut_df3['Angle'].values
 
 
@@ -174,15 +175,19 @@ yieldList = []
 yield_errList = []
 angleList = []
 
+start_time = time.time()
 average(cut_df3,runArr) #### VERY INEFFICIENT FUNCTION CALL
 averaged_df3 = pd.DataFrame(data={'Ep':energyList, 'Yield effcor':yieldList, 'Yield err effcor':yield_errList, 'Angle':angleList})
-# averaged_df3.set_index(['Ep'],inplace=True)
+end_time = time.time()
+print('DONE!\t Process required: %f seconds'%(end_time - start_time))
 
+# averaged_df3.set_index(['Ep'],inplace=True)
+print(len(df3),len(cut_df3),len(averaged_df3))
 
 # Finalized cut and averaged data
 final_a1Yield_effcor = averaged_df3['Yield effcor'].values
 final_a1Yield_err_effcor = averaged_df3['Yield err effcor'].values
-final_a1Eproton = np.longdouble(averaged_df3['Ep'].values)    # keV
+final_a1Eproton = averaged_df3['Ep'].values    # keV
 final_a1Angle = averaged_df3['Angle'].values
 
 
@@ -221,26 +226,31 @@ with pd.ExcelWriter('a1CrossPerAngle.xlsx') as writer:
 
         # Select out the angle
         tempdf = averaged_df3.query('Angle == %s'%ang)
+        print(len(tempdf))
 
-        temp_Eproton = np.longdouble(tempdf['Ep'].values)
+        temp_Eproton = tempdf['Ep'].values
         temp_Angle = tempdf['Angle'].values
         temp_Cross = tempdf['Cross'].values
         temp_Cross_err = tempdf['Cross err'].values
 
         plt.errorbar(temp_Eproton,temp_Cross,yerr=temp_Cross_err,fmt='k.',markersize='4') # was 2
         plt.yscale('log')
-        plt.ylim(1e-5,1e-2)
-        plt.xlim(2.15,3.25)
+        plt.ylim(1e-6,1e-1)
+        plt.xlim(2.05,3.25)
         plt.xlabel('$E_{p}$ (MeV)')
         plt.ylabel('Differential Cross-Section (barns/sr)')
         plt.title('a1 %s$^{\circ}$'%ang)
         plt.savefig('plots/averaged/finalCrossSection/A1/a1_%s.png'%ang,dpi=300)
+        # plt.savefig('plots/averaged/finalCrossSection/A1/noCuts_noKevResolution_a1_%s.png'%ang,dpi=300)
+        # plt.savefig('plots/averaged/finalCrossSection/A1/noCuts_KevResolution_a1_%s.png'%ang,dpi=300)
+        # plt.savefig('plots/averaged/finalCrossSection/A1/Cuts_noKevResolution_a1_%s.png'%ang,dpi=300)
+        # plt.savefig('plots/averaged/finalCrossSection/A1/Cuts_KevResolution_a1_%s.png'%ang,dpi=300)
 
 
         # Append to file
         with open('rMatrix/27Al_rMatrix_a1_cleaned.dat','a') as f:
             for loop in range(len(temp_Cross)):
-                printOut= '%f \t %d \t %.8f \t %.8f \n' %(np.longdouble(temp_Eproton[loop]),temp_Angle[loop],temp_Cross[loop],temp_Cross_err[loop])
+                printOut= '%f \t %d \t %.8f \t %.8f \n' %(temp_Eproton[loop],temp_Angle[loop],temp_Cross[loop],temp_Cross_err[loop])
                 f.write(printOut)
 
 

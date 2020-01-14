@@ -1,12 +1,23 @@
 '''
-This script reads in the yield files produced from `xxyields_pa.C` as well as the
-experimental online logbook file. A pandas DataFrame is used, and modified to
-have the yields, the efficiency corrected yields, run number, and beam energy.
-The DataFrame is then `cleaned` for bad data and when finalized it is then
-saved to an excel file
+This script reads in the yield files produced from `xxyields_pa.C` as well as
+the experimental online logbook file. A pandas DataFrame is used, and modified
+to have the yields, the efficiency corrected yields, run number, and beam
+energy. The DataFrame is then `cleaned` for bad data and when finalized it is
+then saved to an excel file, for subsequent analysis and plotting in
+crossSectionV2.py
 '''
+import time
 import numpy as np
 import pandas as pd
+
+
+# VERBOSITY
+#   0 = off
+#   1 = some
+#   2 = all
+verbose = 1
+
+
 
 # Read online analysis logbook
 df = pd.read_excel('27Al_p_a.xlsx',sheet_name='Sheet3')
@@ -18,7 +29,12 @@ dfeff = pd.read_csv('calibration/csv/detectorEfficiencies.csv')
 
 pRun = df['Run'].values
 pEproton = df['Ep (keV)'].values
-pEproton = pEproton.round(0) # round to 2 decimal points
+# pEproton = pEproton.round(2) # round to 2 decimal points
+# print(pEproton,len(pEproton))
+# pEproton = pEproton.round(0) # round to 2 decimal points
+pEproton = pEproton.astype(np.int)
+# print(pEproton,len(set(pEproton)))
+# exit()
 
 
 # Create dictionary, associating Run number to Proton energy
@@ -54,10 +70,13 @@ for ch in channels:
     chan = chan.assign(Run=pd.Series(RunNum,index=chan.index).values)
     chan = chan.assign(Detector=pd.Series(DetNum,index=chan.index).values)
 
-
     # Assign column as index
     # chan = chan.set_index(['Run','Ep'])
     # chan = chan.set_index(['Run'])
+
+
+    # Example how to drop all data of a specific Run number
+    # chan.query('Run != 9999',inplace=True)
 
 
     # Efficiency correct the yields and append to DataFrame
@@ -85,6 +104,49 @@ for ch in channels:
     chan.query('Run != 939',inplace=True)   # Explicit BG run
 
 
+    # Beginning DataFrame
+    start_time = time.time()
+    print('\n\nFormat of beginnning DataFrame:')
+    print(chan.head())
+    print('Size:',len(chan),'rows')
+
+
+    if verbose > 1:
+        # IsValid == 1 -> Good Fit
+        # IsValid == 0 -> Bad Fit
+        print('\n\nChecking if fit `isValid` is ever bad:')
+        print(chan.query('IsValid != 1'))
+        print('\n\nChecking if fit `Status` is ever bad:')
+        print(chan.query('Status != 0'))
+    # Drop points with bad fits
+    chan.query('IsValid == 1',inplace=True)
+    chan.query('Status == 0',inplace=True)
+
+
+    if verbose > 0:
+        print('\n\nChecking if error in yield is greater than the yield:')
+        print(chan.query('Yield < `Yield err`'))
+        print('Number of points lost: ',len(chan.query('Yield < `Yield err`')))
+    # Drop points where error in yield is greater than the yield
+    chan.query('Yield > `Yield err`',inplace=True)
+
+
+    if verbose > 0:
+        print('\n\nChecking for points with low statistics:')
+        print(chan.query('Area < 200'))
+        print('Number of points lost: ',len(chan.query('Area < 200')))
+    # Drop points with low statistics
+    chan.query('Area > 200',inplace =True)
+
+
+    if verbose > 1:
+        print('\n\nChecking for BG runs that may have snuck in:')
+        print(chan.query('Ep == 0'))
+    # Drop points that are from a BG run if they snuck in (were not explicitly
+    # dropped)
+    chan.query('Ep != 0',inplace=True)
+
+
     # There are runs with identical beam energies, identify the runs and
     # average the yields per detector, update the data frame
     energySet = set(chan['Ep'].values)
@@ -93,24 +155,54 @@ for ch in channels:
         nrgMask = chan.query('Ep == %f'%nrg)
         if len(nrgMask) > 13:
             listOfDuplicateNRGRuns.append(set(nrgMask['Run']))
-    print(listOfDuplicateNRGRuns)
+    # print(listOfDuplicateNRGRuns)
 
     # Run numbers with duplicate energies have been identified, now average
     # per detector, and reassign them back into DataFrame with new run numbers
     # starting from 2000
     newRunNum = 2000
-    for dupeRun1,dupeRun2 in listOfDuplicateNRGRuns:
+    for dupeRunSet in listOfDuplicateNRGRuns:
 
-        tempdf = chan.query('Run == %f or Run == %f'%(dupeRun1,dupeRun2))
-        # print(tempdf)
+        # Unpack the set into a list to access the elements
+        dupeRunList = [x for x in dupeRunSet]
+
+        customQuery = ''
+        for runs in dupeRunList:
+            customQuery += 'Run == %d or '%runs
+
+        # Remove extraneous ' or ' for last appending query
+        customQuery = customQuery[:-4]
+
+        # Examine subset of DataFrame of these duplicate energy runs
+        tempdf = chan.query(customQuery)
 
         # Custom function to correctly compute the average yield (weighted by charge)
         avgY = lambda x : np.average(x, weights=tempdf.loc[x.index,'Q int'])
 
         # Custom function to correctly compute the average of error (square root
         # of the sum in quadrature)
-        # avgYErr = lambda x : np.sqrt(sum(np.array(x)**2))
-        avgYErr = lambda x : np.sqrt(np.average(x, weights=tempdf.loc[x.index,'Q int']))
+        avgYErr = lambda x : np.sqrt( np.sum( (tempdf.loc[x.index,'Q int']*   \
+                                tempdf.loc[x.index,'Yield err'])**2 ) /       \
+                                np.sum(tempdf.loc[x.index,'Q int']) )
+        avgYErrEffcor = lambda x : np.sqrt( np.sum( (tempdf.loc[x.index,'Q int']* \
+                                tempdf.loc[x.index,'Yield err effcor'])**2 ) ) /  \
+                                np.sum(tempdf.loc[x.index,'Q int'])
+
+        # # TESTING STUFF ####
+        # print(tempdf)
+        # test1 = lambda x : np.average(x, weights=tempdf.loc[x.index,'Q int'])                       # WORKING
+        # test2 = lambda x : np.sum( (tempdf.loc[x.index,'Q int']*tempdf.loc[x.index,'Yield err']) )  # WORKING
+        # test3 = lambda x : np.sum( (tempdf.loc[x.index,'Q int']*tempdf.loc[x.index,'Yield err'])**2 )   # WORKING
+        # test4 = lambda x : np.sqrt( np.sum( (tempdf.loc[x.index,'Q int']*     \
+        #                         tempdf.loc[x.index,'Yield err'])**2 ) ) /     \
+        #                         np.sum(tempdf.loc[x.index,'Q int'])   # WORKING
+        #
+        # # print(tempdf.groupby('Detector').agg({'Yield':test1}))
+        # # print(tempdf.groupby('Detector').agg({'Yield':test2}))
+        # # print(tempdf.groupby('Detector').agg({'Yield':test3}))
+        # print(tempdf.groupby('Detector').agg({'Yield':test4}))
+        # exit()
+
 
         # Custom function to give a new run number starting from 2000
         runnum = lambda x : newRunNum
@@ -120,74 +212,51 @@ for ch in channels:
         'Area':'mean','Area err':avgYErr,'sig1':'mean','X2NDF':'mean',
         'IsValid':'mean','Status':'mean','Q int':'mean','Ep':'first',
         'Run':runnum,'Angle':'first','Yield effcor':avgY,
-        'Yield err effcor':avgYErr
+        'Yield err effcor':avgYErrEffcor
         }
 
-        # New DataFrame containing detector averaged quantities (yield, area, etc)
-        # as well as old quantities
+        # New DataFrame that groups quantities by detector. Calculate new stuff
+        # (yield, area, etc) and keep some old quantities,
         tempdf = tempdf.groupby('Detector').agg(tempdict)
         tempdf.reset_index(inplace=True)
         # print(tempdf)
+
+
+        # # See what 'groupby' is actually doing
+        # grouped_df = tempdf.groupby('Detector')
+        # for key, item in grouped_df:
+        #     print(grouped_df.get_group(key), '\n\n')
+        # exit()
+
 
         # Combine the new averaged DataFrame with the old
         chan = pd.concat([chan,tempdf],sort=True, axis=0)
 
         # Drop the duplicate energy runs
-        chan.query('Run != %f'%dupeRun1,inplace=True)
-        chan.query('Run != %f'%dupeRun2,inplace=True)
+        for runs in dupeRunList:
+            customQuery = 'Run != %d'%runs
+            chan.query(customQuery,inplace=True)
 
         newRunNum+=1
 
 
-    # Pre-Cleaning (Drop data where these conditions are not met)
-
-    # Drop points with bad fits
-    # IsValid == 1 -> Good Fit
-    # IsValid == 0 -> Bad Fit
-    print('\n\nChecking if fit `isValid` is ever bad:')
-    print(chan.query('IsValid != 1'))
-    print('\n\nChecking if fit `Status` is ever bad:')
-    print(chan.query('Status != 0'))
-
-    chan.query('IsValid == 1',inplace=True)
-    chan.query('Status == 0',inplace=True)
-
-
+    if verbose > 0 :
+        print('\n\nChecking if error in yield is greater than the yield POST OTHER STUFF:')
+        print(chan.query('Yield < `Yield err`'))
+        print('Number of points lost: ',len(chan.query('Yield < `Yield err`')))
     # Drop points where error in yield is greater than the yield
-    print('\n\nChecking if error in yield is greater than the yield:')
-    print(chan.query('Yield < `Yield err`'))
-
     chan.query('Yield > `Yield err`',inplace=True)
 
 
-    # Drop points where there are no counts
-    print('\n\nChecking for points that have no counts:')
-    print(chan.query('Area < 1'))
-
-    chan.query('Area > 0',inplace=True)
-
-
-    # Drop points that are from a BG run if they snuck in (were not explicitly
-    # dropped)
-    print('\n\nChecking for BG runs that may have snuck in:')
-    print(chan.query('Ep == 0'))
-    chan.query('Ep != 0',inplace=True)
-
-
-    # Example how to drop all data of a specific Run number
-    # chan.query('Run != 9999',inplace=True)
-
-
-    # Average the yield for each detector if there are multiple runs with the
-    # same energy.
-
-
     # Pre-Cleaning complete, drop columns (no longer needed)
-    chan.drop(columns = ['IsValid','Status'], inplace=True)
+    chan.drop(columns = ['IsValid','Status','Area','Area err','sig1','X2NDF'], inplace=True)
+    end_time = time.time()
+    print('\n\nCleaning process required: %f seconds'%(end_time - start_time))
 
-
-    print('\n\nFinal form of DataFrame:')
-    print(chan.head(5))
+    # Final DataFrame
+    print('\n\nFormat of final DataFrame:')
+    print(chan.head())
+    print('Size:',len(chan),'rows')
 
 
     # Save
@@ -201,4 +270,10 @@ for ch in channels:
             tempdf = chan[cut]
             tempdf.to_excel(writer,sheet_name='%s'%det)
 
-print('DONE!')
+print('\n\n\nDONE!\n\n')
+
+print('oooooooo O    O     O     O     O  O   O  Oooooooo    ')
+print('   O     O    O    O O    O O   O  O  O   O           ')
+print('   O     OooooO   OoooO   O  O  O  OOO    OooooooO    ')
+print('   O     O    O  O     O  O   O O  O  O          O    ')
+print('   O     O    O  O     O  O     O  O   O  oooooooO    ')
