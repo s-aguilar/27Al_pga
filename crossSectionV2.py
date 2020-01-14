@@ -81,6 +81,7 @@ angle = np.array([120,105,90,45,30,15,0,-15,-30,-45,-90,-105,-120])
 df3 = df3.sort_values(by=['Ep','Detector'])
 
 
+# DEPRECATED, stats cuts has been moved to 'edit.py'
 # Cut low stats data (PLAY AROUND WITH THESE CUTS)
 # cut_df3 = df3.query('Area > 0') # was 200
 cut_df3 = df3
@@ -174,6 +175,12 @@ energyList = []
 yieldList = []
 yield_errList = []
 angleList = []
+
+# start_time = time.time()
+# average(cut_df3,runArr) #### VERY INEFFICIENT FUNCTION CALL
+# averaged_df3 = pd.DataFrame(data={'Ep':energyList, 'Yield effcor':yieldList, 'Yield err effcor':yield_errList, 'Angle':angleList})
+# end_time = time.time()
+# print('DONE!\t Process required: %f seconds'%(end_time - start_time))
 
 start_time = time.time()
 average(cut_df3,runArr) #### VERY INEFFICIENT FUNCTION CALL
