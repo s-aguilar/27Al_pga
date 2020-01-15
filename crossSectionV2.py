@@ -16,23 +16,43 @@ plt.rcParams['ytick.labelsize']=12
 # PRETTY SLOW
 def average(df,runs):
     def averager(x,y,angie):
-        try:
+        try: # Both left and right
             left = temp.loc[temp['Detector'] == y,'Yield effcor'].values[0]
             left_err = temp.loc[temp['Detector'] == y,'Yield err effcor'].values[0]
-        except: return
-        try:
             right = temp.loc[temp['Detector'] == x,'Yield effcor'].values[0]
             right_err = temp.loc[temp['Detector'] == x,'Yield err effcor'].values[0]
-        except: return
 
-        yieldList.append( (left+right)/2. )
-        yield_errList.append( (left_err**2 + right_err**2) ** .5 )
-        energyList.append(temp['Ep'].values[0]/1000.)    # convert keV to MeV
-        angleList.append(angie)
+            yieldList.append( (left+right)/2. )
+            yield_errList.append( (left_err**2 + right_err**2) ** .5 )
+            energyList.append(temp['Ep'].values[0]/1000.)    # convert keV to MeV
+            angleList.append(angie)
+        except:
+            try: # Only right
+                right = temp.loc[temp['Detector'] == x,'Yield effcor'].values[0]
+                right_err = temp.loc[temp['Detector'] == x,'Yield err effcor'].values[0]
+                yieldList.append( right )
+                yield_errList.append( right_err)
+                energyList.append(temp['Ep'].values[0]/1000.)    # convert keV to MeV
+                angleList.append(angie)
+            except:
+                try: # Only left
+                    left = temp.loc[temp['Detector'] == y,'Yield effcor'].values[0]
+                    left_err = temp.loc[temp['Detector'] == y,'Yield err effcor'].values[0]
+                    yieldList.append( left )
+                    yield_errList.append( left_err)
+                    energyList.append(temp['Ep'].values[0]/1000.)    # convert keV to MeV
+                    angleList.append(angie)
+                except: return
+
+
+
 
     # Loop through each run, averaging the left and right detectors
     for _ in runs[:]:
+        # tempp = df.set_index('Run')
         temp = df.query('Run == %s'%_)
+        # print(temp.head(13))
+        # exit()
         # print(temp.head(3))
         # print(temp.query('(Detector == 0) or (Detector == 12)'))
         averager(6,6,0)
@@ -106,7 +126,7 @@ numOfTarget *= barn_conv                        # Units of barn
 cut_a1Cross = cut_a1Yield_effcor / numOfTarget / solidAngle
 cut_a1Cross_err = cut_a1Yield_err_effcor / numOfTarget / solidAngle
 
-"""
+# """
 # NOT AVERAGED
 # Look at Before and After effect of cuts on the raw yield, and plot the post
 # cut, efficiency corrected cross section per detector
@@ -182,14 +202,16 @@ angleList = []
 # end_time = time.time()
 # print('DONE!\t Process required: %f seconds'%(end_time - start_time))
 
+
 start_time = time.time()
 average(cut_df3,runArr) #### VERY INEFFICIENT FUNCTION CALL
 averaged_df3 = pd.DataFrame(data={'Ep':energyList, 'Yield effcor':yieldList, 'Yield err effcor':yield_errList, 'Angle':angleList})
 end_time = time.time()
-print('DONE!\t Process required: %f seconds'%(end_time - start_time))
+print('Averaging Process required: %f seconds'%(end_time - start_time))
+
 
 # averaged_df3.set_index(['Ep'],inplace=True)
-print(len(df3),len(cut_df3),len(averaged_df3))
+# print(len(df3),len(cut_df3),len(averaged_df3))
 
 # Finalized cut and averaged data
 final_a1Yield_effcor = averaged_df3['Yield effcor'].values
@@ -233,7 +255,7 @@ with pd.ExcelWriter('a1CrossPerAngle.xlsx') as writer:
 
         # Select out the angle
         tempdf = averaged_df3.query('Angle == %s'%ang)
-        print(len(tempdf))
+        # print(len(tempdf))
 
         temp_Eproton = tempdf['Ep'].values
         temp_Angle = tempdf['Angle'].values
@@ -248,11 +270,7 @@ with pd.ExcelWriter('a1CrossPerAngle.xlsx') as writer:
         plt.ylabel('Differential Cross-Section (barns/sr)')
         plt.title('a1 %s$^{\circ}$'%ang)
         plt.savefig('plots/averaged/finalCrossSection/A1/a1_%s.png'%ang,dpi=300)
-        # plt.savefig('plots/averaged/finalCrossSection/A1/noCuts_noKevResolution_a1_%s.png'%ang,dpi=300)
-        # plt.savefig('plots/averaged/finalCrossSection/A1/noCuts_KevResolution_a1_%s.png'%ang,dpi=300)
-        # plt.savefig('plots/averaged/finalCrossSection/A1/Cuts_noKevResolution_a1_%s.png'%ang,dpi=300)
-        # plt.savefig('plots/averaged/finalCrossSection/A1/Cuts_KevResolution_a1_%s.png'%ang,dpi=300)
-
+        # plt.show()
 
         # Append to file
         with open('rMatrix/27Al_rMatrix_a1_cleaned.dat','a') as f:

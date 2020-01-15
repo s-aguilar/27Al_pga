@@ -15,7 +15,7 @@ import pandas as pd
 #   0 = off
 #   1 = some
 #   2 = all
-verbose = 1
+verbose = 0
 
 
 
@@ -29,10 +29,10 @@ dfeff = pd.read_csv('calibration/csv/detectorEfficiencies.csv')
 
 pRun = df['Run'].values
 pEproton = df['Ep (keV)'].values
-# pEproton = pEproton.round(2) # round to 2 decimal points
+pEproton = pEproton.round(1) # round to 2 decimal points
 # print(pEproton,len(pEproton))
 # pEproton = pEproton.round(0) # round to 2 decimal points
-pEproton = pEproton.astype(np.int)
+# pEproton = pEproton.astype(np.int)
 # print(pEproton,len(set(pEproton)))
 # exit()
 
@@ -74,6 +74,20 @@ for ch in channels:
     # chan = chan.set_index(['Run','Ep'])
     # chan = chan.set_index(['Run'])
 
+
+    # Overlapping scans in data seem to appear to have an energy spread, try to
+    # correct for it manually by shifting entire scans by some arbitrary amount
+    # found by eye
+
+    # Scan 5 is 0.5 keV shifted above scan 4
+    scan5 = ((chan['Run'] > 807) & (chan['Run'] < 953))  # run numbers with endpoints exclusive runs 808-952
+    # Scan 6 is 0.5 keV shifted relative above scan 5
+    scan6 = ((chan['Run'] > 959) & (chan['Run'] < 1132))  # run numbers with endpoints exclusive runs 960-1131
+    # print(chan.loc[scan6, 'Ep'].head())
+    chan.update(chan.loc[scan5, 'Ep'] - 0)
+    chan.update(chan.loc[scan6, 'Ep'] - .5)
+    # print(chan.loc[scan6, 'Ep'].head()
+    # exit()
 
     # Example how to drop all data of a specific Run number
     # chan.query('Run != 9999',inplace=True)
@@ -133,10 +147,10 @@ for ch in channels:
 
     if verbose > 0:
         print('\n\nChecking for points with low statistics:')
-        print(chan.query('Area < 200'))
-        print('Number of points lost: ',len(chan.query('Area < 200')))
+        print(chan.query('Area < 70'))
+        print('Number of points lost: ',len(chan.query('Area < 70')))
     # Drop points with low statistics
-    chan.query('Area > 200',inplace =True)
+    chan.query('Area > 70',inplace =True)
 
 
     if verbose > 1:
@@ -177,16 +191,11 @@ for ch in channels:
         tempdf = chan.query(customQuery)
 
         # Custom function to correctly compute the average yield (weighted by charge)
-        avgY = lambda x : np.average(x, weights=tempdf.loc[x.index,'Q int'])
+        avgY = lambda x : np.average(x, weights=tempdf.loc[x.index,'Yield err']**(-2))
 
-        # Custom function to correctly compute the average of error (square root
-        # of the sum in quadrature)
-        avgYErr = lambda x : np.sqrt( np.sum( (tempdf.loc[x.index,'Q int']*   \
-                                tempdf.loc[x.index,'Yield err'])**2 ) /       \
-                                np.sum(tempdf.loc[x.index,'Q int']) )
-        avgYErrEffcor = lambda x : np.sqrt( np.sum( (tempdf.loc[x.index,'Q int']* \
-                                tempdf.loc[x.index,'Yield err effcor'])**2 ) ) /  \
-                                np.sum(tempdf.loc[x.index,'Q int'])
+        # Custom function to correctly compute the average of errors        #####CHECK THIS
+        avgYErr = lambda x : np.average(np.ones_like(x), weights=tempdf.loc[x.index,'Yield err']**(-2))
+        avgYErrEffcor = lambda x : np.average(np.ones_like(x), weights=tempdf.loc[x.index,'Yield err effcor']**(-2))
 
         # # TESTING STUFF ####
         # print(tempdf)
@@ -254,6 +263,9 @@ for ch in channels:
     print('\n\nCleaning process required: %f seconds'%(end_time - start_time))
 
     # Final DataFrame
+    # Assign column as index
+    # chan = chan.set_index(['Run','Ep'])
+    chan = chan.set_index(['Run'])
     print('\n\nFormat of final DataFrame:')
     print(chan.head())
     print('Size:',len(chan),'rows')
