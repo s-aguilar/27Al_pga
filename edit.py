@@ -18,7 +18,6 @@ import pandas as pd
 verbose = 0
 
 
-
 # Read online analysis logbook
 df = pd.read_excel('27Al_p_a.xlsx',sheet_name='Sheet3')
 
@@ -41,8 +40,8 @@ pEproton = pEproton.round(1) # round to 2 decimal points
 runToEproton = {pRun[i]:pEproton[i] for i in range(len(pRun))}
 
 
-# channels = ['a1','p1','p2']
-channels = ['a1']
+channels = ['a1','p1','p2']
+# channels = ['a1']
 
 for ch in channels:
 

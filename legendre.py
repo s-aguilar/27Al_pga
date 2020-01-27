@@ -82,7 +82,7 @@ def convert(old):
 colNames = ['Energy','Angle','Cross-section','Error']
 a1 = pd.read_table('rMatrix/27Al_rMatrix_a1_cleaned.dat',names=colNames)
 
-dict_channels = {'a1':a1}
+dict_channels = {'a1':a1,'p1':p1,'p2':p2}
 
 
 # Plotting: OFF = False, ON = True
