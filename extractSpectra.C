@@ -23,7 +23,17 @@ void extractSpectra(){
 
     cout << "\nBeginning Processing:" << endl;
     // Loop through runs, creating the histograms
-    for (int runNum=1; runNum<=10; runNum++){
+    int startrun;
+    int endrun;
+    if (local == 1){
+        startrun = 1;
+        endrun = 10;
+    }
+    else{
+        startrun = 77;
+        endrun = 96;
+    }
+    for (int runNum=startrun; runNum<=endrun; runNum++){
 
         try {
             TString data_path, out_path;
@@ -41,7 +51,7 @@ void extractSpectra(){
             filename += data_path;
             filename += "run_";
             outname += "run_";
-            cout << runNum << endl;
+            // cout << runNum << endl;
             if(runNum < 10){
                 filename += "00";
                 outname += "000"; // "00"
@@ -54,7 +64,7 @@ void extractSpectra(){
                 outname += "0";
             }
 
-            cout << outname << endl;
+            // cout << outname << endl;
 
             filename += runNum;
             outname += runNum;
@@ -95,12 +105,15 @@ void extractSpectra(){
             TTreeReaderArray<UInt_t> scaler(scaler_reader, "scaler.sc");
 
             int iEvt = 0;
+            // int tlive = eventTime->GetEntries();
+            int tlive = scaler_reader.GetEntries("sc[3]");
             while(reader.Next()){
                 for(int det_i=0; det_i<13; det_i++){
                     hist[det_i]->Fill(adc[det_i]);
                     // hist[det_i]->GetYaxis()->SetRangeUser(0,1.2*hist[det_i]->GetMaximum())
                 }
                 iEvt++;
+
             }
 
             double qlive = 0.0;
@@ -112,6 +125,10 @@ void extractSpectra(){
             TVectorD pulses(1);
             pulses[0] = qlive;      // 10^-8 C/pulse
             pulses.Write(TString("pulses"));
+
+            TVectorD times(1);
+            times[0] = tlive;      // 10^-8 C/pulse
+            times.Write(TString("times"));
 
             // TVectorD lastTimeStamp(1);
             // lastTimeStamp[0] = 100;      ///// THIS NEEDS TO BE FURTHER DEVELOPED

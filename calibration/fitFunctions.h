@@ -207,6 +207,26 @@ TFitResultPtr single_gauss_area_p2(TH1D *H0){
 
 }
 
+TFitResultPtr single_gauss_area_Thick(TH1D *H0){
+
+	double low = 1410;
+	double high = 1535;
+
+	TF1 *ffit1 = new TF1("ffit1",fit_single_gauss_func,low,high,6);
+	ffit1->SetParNames("a0","a1","a2","norm","mean","sigma");
+    ffit1->SetParameters(1,0,0,2000,1450,12); //840
+    ffit1->FixParameter(2,0);		// Makes it a linear background
+
+	// Set limits on parameters to better constrain the fit
+	ffit1->SetParLimits(3,1,1e8);	// Normalization
+	ffit1->SetParLimits(4,low,high);
+	ffit1->SetParLimits(5,5,30);	// Std dev range
+
+	TFitResultPtr r = H0->Fit("ffit1","SQR");
+	return r;
+
+}
+
 TFitResultPtr single_gauss_area_co1(TH1D *H0){
 
 	double low = 930;

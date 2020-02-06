@@ -2,6 +2,8 @@
 using std::cout;
 using std::endl;
 
+#include <chrono>  // for high_resolution_clock
+
 #include <string>
 using std::string;
 
@@ -22,61 +24,32 @@ using std::vector;
 // Fitting routines
 #include "calibration/fitFunctions.h"
 
-// Gain match routine
-#include "calibration/gainMatch.h"
+
+// if true use local, false use CRC
+bool loc = false;
+
+// if true save plots, false don't save
+bool plot = true;
 
 
+void peakFitter(TFile *TFitOut, const char *fileName, const char *detector,
+	int detLoop){
 
-// if 1, use local, if 0 use CRC
-int loc = 0;
-
-
-// Flourine line from first run, these get updated run by run with the new ranges
-double fLow[] = {113,123,129,125,124,129,126,127,126,128,127,126,123};
-double fHigh[] = {140,143,144,144,141,147,146,146,143,143,147,143,147};
-
-// global array for gain match constants
-double _a_gain[13];
-double _b_gain[13];
-
-// global array for calibration constants
-double _a_calibrator[13];
-double _b_calibrator[13];
-
-
-void peakFitter(const char *fileName, const char *fileBack, const char *detector,
-	const vector < double > &peak1BackLow, const vector < double > &peak1BackHigh,
-	const vector < double > &peak2BackLow, const vector < double > &peak2BackHigh,
-	vector < double > &peak1SpecLow, vector < double > &peak1SpecHigh,
-	vector < double > &peak2SpecLow, vector < double > &peak2SpecHigh,
-	double low, double high, int detLoop){
-
-
+	// Get root file
 	TFile *fyield = new TFile(fileName);
-	TFile *fbackground = new TFile(fileBack);	// bg spectra
 
-	// Get runtime info from root file
-	TVectorD *run_t0 = static_cast<TVectorD*>(fyield->Get("lastTimeStampSeconds-0"));
-	TVectorD *back_t0 = static_cast<TVectorD*>(fbackground->Get("lastTimeStampSeconds-0"));
+	// Change output directory to TFitOut
+	TFitOut->cd();
 
-	// Run time and background time for each board
-	double runTime0 = (*run_t0)[0];
-	double backTime0 = (*back_t0)[0];
-
-	// Scale background spectra to ratio of run time
-	double scale0 = runTime0/backTime0;
+	// Get integrated charge and run time from root file
+	TVectorD *qcharge = static_cast<TVectorD*>(fyield->Get("pulses"));
+	double charge = (*qcharge)[0];
+	TVectorD *ttimes = static_cast<TVectorD*>(fyield->Get("times"));
+	double times = (*ttimes)[0];
 
 	// Get histograms from root file
 	TH1D *hyield = static_cast<TH1D*>(fyield->Get(detector));
-	TH1D *HBACK = static_cast<TH1D*>(fbackground->Get(detector));
 
-	// Scale the background
-	HBACK->Scale(scale0);
-	HBACK->SetDirectory(0);
-
-	// Get integrated charge information
-	TH1D *qcharge = static_cast<TH1D*>(fyield->Get("h1-7"));
-	double charge = qcharge->GetEntries();
 	gStyle->SetOptFit(1111);
 
 	// Create the canvas
@@ -86,149 +59,76 @@ void peakFitter(const char *fileName, const char *fileBack, const char *detector
 
 	c0->cd(1);
 
-	// Prepare bg subtracted histogram and other histograms
-	TH1D *ysubtracted = static_cast<TH1D*>(hyield->Clone("ysubtracted"));
-	TH1D *h2 = new TH1D(Form("h2 - det-%i",detLoop),Form("h2 - det-%i",detLoop),8192,0,8192);
-	TH1D *h3 = new TH1D(Form("h3 - det-%i",detLoop),Form("h3 - ECAL - det-%i",detLoop),8192,0,8192);
+	// // Prepare histograms and name them
+	// TH1D *h1 = new TH1D(Form("h1 - det%i",detLoop),Form("h1 - det%i",detLoop),4096,0,4096);
+	// TH1D *h2 = new TH1D(Form("h2 - det%i",detLoop),Form("h2 - ECAL - det%i",detLoop),4096,0,4096);
 
 	double area;
 	double area_err;
 	double chi2NDF;
 	double sig1;
 	double sig2;
-
-	double a = 0;
-	double b = 0;
-	double a_gm = 0;
-	double b_gm = 0;
-	double a_cal = 0;
-	double b_cal = 0;
-
-	double linear = 0;
-	double offset = 0;
-
-	vector < double > a1Peak;
-
-	/////////////////////////
-	///    GAIN MATCH     ///
-	/////////////////////////
-
-	// Find BG peak positions
-	vector < double > peak1Back;
-	vector < double > peak2Back;
-
-	peak1Back = iterative_single_gauss_peak(peak1BackLow[detLoop],peak1BackHigh[detLoop],HBACK);
-	peak2Back = iterative_double_gauss_peak(peak2BackLow[detLoop],peak2BackHigh[detLoop],HBACK);
-
-	// Find the BG peak positions in runs
-	vector < double > peak1Position;
-	vector < double > peak2Position;
-
-	peak1Position = iterative_single_gauss_peak(peak1SpecLow[detLoop],peak1SpecHigh[detLoop],hyield);
-	peak2Position = iterative_double_gauss_peak(peak2SpecLow[detLoop],peak2SpecHigh[detLoop],hyield);
-
-	// Add new ranges for each detector
-	peak1SpecLow[detLoop] = peak1Position[1];
-	peak1SpecHigh[detLoop] = peak1Position[2];
-	peak2SpecLow[detLoop] = peak2Position[1];
-	peak2SpecHigh[detLoop] = peak2Position[2];
-
-	// New gain matched BG histogram -> h2
-	vector < double > gain;
-	gain = gain_match(peak1Position[0],peak2Position[0],peak1Back[0],peak2Back[0],h2,HBACK);
-	a = gain[0];
-	b = gain[1];
-	a_gm = gain[0];
-	b_gm = gain[1];
-
-	_a_gain[detLoop] = a_gm;
-	_b_gain[detLoop] = b_gm;
+	bool isValid;
+	int status;
 
 	// Draw results
-	hyield->Draw();
-	hyield->GetXaxis()->SetRangeUser(1000,1500);
+	// hyield->Draw();
+	hyield->GetXaxis()->SetRangeUser(1300,1700);
+	hyield->SetStats(kFALSE);
+	c0->cd(2);
+	hyield->GetXaxis()->SetRangeUser(1400,1550);
 	hyield->SetStats(kFALSE);
 
-	// Recalculate errors manually
-	for(int i = 0; i<=ysubtracted->GetNbinsX(); i++){
-		double yval = ysubtracted->GetBinContent(i);
-		double yval2 = h2->GetBinContent(i);	//fback->Eval(ysubtracted->GetBinCenter(i));
-		double yerr = ysubtracted->GetBinError(i);
-		double yerr2 = h2->GetBinError(i);	// Takes the error from the gain matched bg spectrum
+	// ATTEMPT TO FIT
+	try {
+		string runNum = fileName;
+		if (loc) runNum = runNum.substr(8,4);
+		else runNum = runNum.substr(70,4);
 
-		ysubtracted->SetBinContent(i,yval-yval2);
-		ysubtracted->SetBinError(i,TMath::Sqrt(yerr*yerr+yerr2*yerr2));
-	}
+		// .Get() returns the contained pointer to TFitResult. Dereference it with "*""
+		TFitResult fitResults = static_cast<TFitResult>(*single_gauss_area_Thick(hyield).Get());
 
-	ysubtracted->SetLineColor(kRed);
-	ysubtracted->Draw("SAME");
+		// Write out fitResults to current TFile (TFitOut)
+		fitResults.Write(Form("det-%i",detLoop));
 
-	c0->cd(2);
+		area = fitResults.Parameter(3);
+		area_err = fitResults.Error(3);
+		chi2NDF = fitResults.Chi2()/fitResults.Ndf();
+		sig1 = fitResults.Parameter(5);
+		isValid = fitResults.IsValid();	// Check if fit was succesful, minimum
+										// was found, return type bool
 
-	// Now I've gainmatched and subtracted the BG -> ysubtracted, find flourine line position
-	vector < double > fPosition;
-	fPosition = single_gauss_peak(fLow[detLoop],fHigh[detLoop],ysubtracted);
-
-	// Found the lines update their ranges run by run
-	fLow[detLoop] = fPosition[1];
-	fLow[detLoop] = fPosition[2];
-
-	vector < double > calibrators;
-
-	calibrators = calibrate(109.9,1468,fPosition[0],peak2Position[0],h3,ysubtracted);
-	a_cal = calibrators[0];
-	b_cal = calibrators[1];
-
-	// Use these calibrators for when the runtime is too short and no gainmatch fitting will be performed
-	_a_calibrator[detLoop] = a_cal;
-	_b_calibrator[detLoop] = b_cal;
+		status = fitResults.Status();	// Return status code of error minimization
+										// This is minimizer dependent!
 
 
-	h3->GetXaxis()->SetRangeUser(1000,1500);
-	h3->Draw();
-	h3->SetStats(kFALSE);
+		// The charge is integrated charge of proton which is 1
+		double yield = area/(charge);
+		double yield_err = area_err/(charge);
 
-	a1Peak = single_gauss_area(1368.6,h3); // 1368.63
+		string detNum = detector;
 
-	area = a1Peak[0];
-	area_err = a1Peak[1];
-	chi2NDF = a1Peak[2];
-	sig1 = a1Peak[3];
-	linear = a1Peak[4];
-	offset = a1Peak[5];
+		if(plot){
+			c0->SaveAs(Form("Yields/Thick/run_%s/%s_Fit.pdf",runNum.c_str(),detNum.c_str()));
+			c0->SaveAs(Form("Yields/Thick/det-%i/run_%s_Fit.pdf",detLoop,runNum.c_str()));
+		}
 
-	// The charge is integrated charge of alpha which is 2+
-	double yield = area/(charge);
-	double yield_err = area_err/(charge);
-
-	double goodFit;
-	if (chi2NDF <= 1.4 && chi2NDF >=.6 ) goodFit = 0;
-	else goodFit = 1;
-
-	string runNum = fileName;
-	if (loc==1) runNum = runNum.substr(9,3);
-	else runNum = runNum.substr(73,3);
-
-	string detNum = detector;
-
-	c0->SaveAs(Form("Yields/A1/run0%s/det_%s_Fit.png",runNum.c_str(),detNum.c_str()));
-	c0->SaveAs(Form("Yields/A1/det-%i/run0%s_Fit.png",detLoop,runNum.c_str()));
-
-	ofstream myfile;
-	myfile.open ("Yields/A1/_A1.csv",std::ios::app);
-	myfile<<Form("run0%s",runNum.c_str())<<","<< Form("det_%s",detNum.c_str())<<","<<
-				yield<<","<<yield_err<<","<<area<<","<<area_err<<","<<runTime0<<","<<
-				goodFit<<","<<a<<","<<b<<","<<sig1<<","<<chi2NDF<<","<<linear<<","<<
-				offset<<","<<charge<<"\n";
-	myfile.close();
-
+		ofstream myfile;
+		myfile.open ("Yields/Thick/Thick.csv",std::ios::app);
+		myfile<<Form("run_%s",runNum.c_str())<<","<< Form("%s",detNum.c_str())
+			<<","<<yield<<","<<yield_err<<","<<area<<","<<area_err<<","<<sig1
+			<<","<<chi2NDF<<","<<isValid<<","<<status<<","<<charge<<","<<times<<"\n";
+		myfile.close();
+	}catch(...){}
 
 	c0->Clear();
 	fyield->Close();
-	fbackground->Close();
-	delete c0;
 
-	gROOT->Reset();
+	// Delete objects on the heap
+	delete c0;
+	c0 = nullptr;
+	delete fyield;
+	fyield = nullptr;
 }
 
 
@@ -240,102 +140,97 @@ void thicknessAnalysis(){
 	gErrorIgnoreLevel = kWarning;
 
 	// When running on CRC
-	const char *path = "/afs/crc.nd.edu/user/s/saguilar/Group/24Mg_ap/";
+	const char *path = "/afs/crc.nd.edu/user/s/saguilar/Group/27Al_pa/";
 	chdir(path);
-
-	// Background Spectrum file
-	const char *fileBackground = "calibration/background/run0422.root";
 
 	const char *detect;
 	const char *files;
 
 	// Prepare structure of data output in CSV file
 	ofstream myfile;
-	myfile.open ("Yields/A1/_A1.csv",std::ios::out);
-	myfile<<"Run"<<","<<"Detector"<<","<<"Yield"<<","<<"Yield err"<<","<<"Area"<<","
-			<<"Area err"<<","<<"Time"<<","<<"Fit Status"<<","<<"a"<<","<<"b"<<","
-			<<"sig1"<<","<<"X2NDF"<<","<<"Linear"<<","<<"Offset"<<","<<"Q_int"<<"\n";
+	myfile.open ("Yields/Thick/Thick.csv",std::ios::out);
+	myfile<<"Run"<<","<<"Detector"<<","<<"Yield"<<","<<"Yield err"<<","
+		<<"Area"<<","<<"Area err"<<","<<"sig1"<<","<<"X2NDF"<<","<<"IsValid"<<","
+		<<"Status"<<","<<"Q int"<<","<<"Time"<<"\n";
 	myfile.close();
 
-	// BG spectra peak ranges
-	const vector < double >  peak1BackLow ({310,330,330,330,320,340,330,330,330,330,320,310,330});
-	const vector < double >  peak1BackHigh ({350,370,380,370,360,380,380,380,380,380,380,375,380});
-	const vector < double >  peak2BackLow ({1270,1380,1385,1370,1330,1390,1380,1380,1370,1390,1400,1350,1380});
-	const vector < double >  peak2BackHigh ({1380,1500,1510,1485,1450,1540,1510,1520,1490,1510,1530,1520,1500});
-
-	// BG peak ranges starting from run0159 \
-		These get updated as runs progress
-	vector < double >  peak1SpecLow ({300,320,330,330,320,330,330,330,330,330,330,330,330});
-	vector < double >  peak1SpecHigh ({350,380,390,380,360,380,380,380,380,380,380,380,380});
-	vector < double >  peak2SpecLow ({1285,1400,1400,1390,1360,1430,1410,1420,1410,1410,1420,1410,1400});
-	vector < double >  peak2SpecHigh ({1360,1480,1510,1485,1440,1510,1480,1500,1480,1510,1530,1490,1490});
-
-
+	try {
+		// gSystem->Exec(Form("mkdir Yields"));
+		// gSystem->Exec(Form("mkdir Yields/A1"));
+		// gSystem->Exec(Form("mkdir Yields/P1"));
+		// gSystem->Exec(Form("mkdir Yields/P2"));
+		gSystem->Exec(Form("mkdir Yields/Thick"));
+	}catch(...){}
+	try {
+		// gSystem->Exec(Form("mkdir TFitResult"));
+		// gSystem->Exec(Form("mkdir TFitResult/A1"));
+		// gSystem->Exec(Form("mkdir TFitResult/P1"));
+		// gSystem->Exec(Form("mkdir TFitResult/P2"));
+		gSystem->Exec(Form("mkdir TFitResult/Thick"));
+	}catch(...){}
 	// Make directory to visually inspect the fits
 	for(int ii = 0; ii<13; ii++){
 		try {
-			gSystem->Exec(Form("mkdir Yields/A1/det-%i",ii));
+			gSystem->Exec(Form("mkdir Yields/Thick/det-%i",ii));
 		}catch(...){}
 	}
 
 
-	// Loop through runs: 159-410
+	// Loop through runs: 97-107
 	cout << "\nBEGINNING PEAK FITTING:" << endl;
+
+	// Record start time
+	auto start = std::chrono::high_resolution_clock::now();
+
 	int fileNum = 1;
+	int runStart = 77 ;
+	int upToRun = 97;
 
-	int upToRun;
-	if (loc==1) upToRun = 175;
-	else upToRun = 410;
-	for(int i=159;i<upToRun;i++){
+	for(int i=runStart;i<upToRun;i++){
 
-		// Skip bad runs
-		if(i==163) continue;
-		else if(i==164) continue;
-		else if(i==166) continue;
-		else if(i==182) continue;
-		else if(i==244) continue;
-		else if(i==164) continue;
-		else if(i==166) continue;
-		else if(i==182) continue;
-		else if(i>=244 && i<=255) continue;
-		else if(i==276) continue;
-		else if(i==277) continue;
-		else if(i==285) continue;
-		else if(i==289) continue;
-		else if(i==290) continue;
-		else if(i==294) continue;
-		else if(i==255) continue;
+		TString runNum_TString;
+
+		if(i < 100) runNum_TString = "00";
+		else if((i >= 100) && (i < 1000)) runNum_TString = "0";
+		else runNum_TString = "";
+
+		runNum_TString += i;	// Should be format 0001 -> 9999
+		const char *runNum_String = (const char*)runNum_TString;
 
 		try {
-			gSystem->Exec(Form("mkdir Yields/A1/run0%d",i));
+			gSystem->Exec(Form("mkdir Yields/Thick/run_%s",runNum_String));
 		}catch(...){}
 
-		double a1;
+		// Save TFitResult results.
+		TFile *TFitFiles = new TFile(Form("TFitResult/Thick/run_%s.root",runNum_String),"RECREATE");
 
-		// Loop through detectors on board 1 (0-7) and board 2 (8-12)
-		for(int j=0;j<13;j++){ // 13
+		// Loop through detectors on board
+		for(int j=0;j<13;j++){
 
-			if (loc==1) files = Form("runs/run0%d.root",i);
-			else files = Form("/afs/crc.nd.edu/group/nsl/activetarget/data/24Mg_alpha_gamma/spectra/run0%d.root",i);
+			files = Form("/afs/crc.nd.edu/group/nsl/activetarget/data/27Al_p_March_2019/run/run_%s.root",runNum_String);
 
-			if (j<8){
-				detect = Form("h0-%d",j);
-			}
-			else{
-				detect = Form("h1-%d",j-8);
-			}
-
-			// Estimated peak positions from calibration
-			double peakPos[] = {1247,1352,1366,1347,1315,1379,1358,1371,1351,1372,1379,1355,1356};
-			a1 = peakPos[j];
+			detect = Form("det%d",j);
 
 			// Perform peak fitting
-			peakFitter(files,fileBackground,detect,peak1BackLow,peak1BackHigh,
-				peak2BackLow,peak2BackHigh,peak1SpecLow,peak1SpecHigh,
-				peak2SpecLow,peak2SpecHigh,a1-50,a1+50,j);
+			peakFitter(TFitFiles,files,detect,j);
 		}
 
-		cout << Form("Fitting %d complete",fileNum) << endl;
+		// Write all TObjects in memory (TFitResult) to TFile
+		TFitFiles->Write();
+		TFitFiles->Close();
+
+		// Delete objects on the heap
+		delete TFitFiles;
+		TFitFiles = nullptr;
+
+		cout << Form("Fitting run_%s complete",runNum_String) << endl;
 		fileNum+=1;
 	}
+
+	// Record end time
+	auto finish = std::chrono::high_resolution_clock::now();
+
+	std::chrono::duration<double> elapsed = finish - start;
+
+	cout << "Elapsed time: " << elapsed.count() << " s\n";
 }

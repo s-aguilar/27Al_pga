@@ -28,12 +28,7 @@ dfeff = pd.read_csv('calibration/csv/detectorEfficiencies.csv')
 
 pRun = df['Run'].values
 pEproton = df['Ep (keV)'].values
-pEproton = pEproton.round(1) # round to 2 decimal points
-# print(pEproton,len(pEproton))
-# pEproton = pEproton.round(0) # round to 2 decimal points
-# pEproton = pEproton.astype(np.int)
-# print(pEproton,len(set(pEproton)))
-# exit()
+pEproton = pEproton.round(1) # round to 1 decimal point (100s of eV precision)
 
 
 # Create dictionary, associating Run number to Proton energy
@@ -41,8 +36,6 @@ runToEproton = {pRun[i]:pEproton[i] for i in range(len(pRun))}
 
 
 channels = ['a1','p1','p2']
-# channels = ['a1']
-
 for ch in channels:
 
     print('\n\nWORKING ON %s CHANNEL:'%ch)
@@ -86,7 +79,7 @@ for ch in channels:
     chan.update(chan.loc[scan5, 'Ep'] - 0)
     chan.update(chan.loc[scan6, 'Ep'] - .5)
     # print(chan.loc[scan6, 'Ep'].head()
-    # exit()
+
 
     # Example how to drop all data of a specific Run number
     # chan.query('Run != 9999',inplace=True)
@@ -189,12 +182,15 @@ for ch in channels:
         # Examine subset of DataFrame of these duplicate energy runs
         tempdf = chan.query(customQuery)
 
-        # Custom function to correctly compute the average yield (weighted by charge)
+        # Custom function to correctly compute the average yield
         avgY = lambda x : np.average(x, weights=tempdf.loc[x.index,'Yield err']**(-2))
+        avgYEffcor = lambda x : np.average(x, weights=tempdf.loc[x.index,'Yield err effcor']**(-2))
 
         # Custom function to correctly compute the average of errors        #####CHECK THIS
-        avgYErr = lambda x : np.average(np.ones_like(x), weights=tempdf.loc[x.index,'Yield err']**(-2))
-        avgYErrEffcor = lambda x : np.average(np.ones_like(x), weights=tempdf.loc[x.index,'Yield err effcor']**(-2))
+        # avgYErr = lambda x : np.average(np.ones_like(x), weights=tempdf.loc[x.index,'Yield err']**(-2))
+        # avgYErrEffcor = lambda x : np.average(np.ones_like(x), weights=tempdf.loc[x.index,'Yield err effcor']**(-2))
+        avgYErr = lambda x : np.sqrt(1/np.sum(tempdf.loc[x.index,'Yield err']**(-2)))
+        avgYErrEffcor = lambda x : np.sqrt(1/np.sum(tempdf.loc[x.index,'Yield err effcor']**(-2)))
 
         # # TESTING STUFF ####
         # print(tempdf)
@@ -219,7 +215,7 @@ for ch in channels:
         tempdict = {'Yield':avgY,'Yield err':avgYErr,
         'Area':'mean','Area err':avgYErr,'sig1':'mean','X2NDF':'mean',
         'IsValid':'mean','Status':'mean','Q int':'mean','Ep':'first',
-        'Run':runnum,'Angle':'first','Yield effcor':avgY,
+        'Run':runnum,'Angle':'first','Yield effcor':avgYEffcor,
         'Yield err effcor':avgYErrEffcor
         }
 

@@ -29,7 +29,7 @@ def pValue(numOfData,numOfPars,x2):
 
 """
 MATRIX METHOD, INCLUDING ERRORS OF PARAMETERS
-Derivation and formalism found in Bevington's Data reduction book
+Derivation and formalism found in Bevington's Data reduction book CH 7
 """
 def chi2_mat(data,data_unc,angle,order):
 
@@ -126,22 +126,30 @@ def chi2_mat(data,data_unc,angle,order):
 
     """
     # Calculate errors for each coefficient from error matrix and store in list
+    # Variances are diagonal terms of covariance (error matrix)
+    # Errors are sqrt of that
     """
-    for row in range(rank):
-        a_var_temp = 0
-        for col in range(rank):
-            if row == col:
-                a_var_temp += alpha_pinv[row][col]
-            # else:
-            #     a_var_temp += 2*alpha_pinv[row][col]
+    for ind in range(rank):
+        a_errs[ind] = alpha_pinv[ind][ind]  # Store the variances
+    a_errs = np.sqrt(a_errs)
 
-        # Used if encountering a negative value. investigate this some more
-        try:
-            a_errs[row] = np.sqrt(a_var_temp)
-        # except RuntimeWarning as err:
-        except Exception:
-            print('A problem was encountered:')
-            a_errs[row] = 0
+    # SUSPECTED WRONG, errors for parameters are diagonal terms
+    # for row in range(rank):
+    #     # a_var_temp = 0
+    #     for col in range(rank):
+    #         # Get the variances
+    #         if row == col:
+    #             a_var_temp += alpha_pinv[row][col]
+    #         # else:
+    #         #     a_var_temp += 2*alpha_pinv[row][col]
+    #
+    #     # Used if encountering a negative value. investigate this some more
+    #     try:
+    #         a_errs[row] = np.sqrt(a_var_temp)
+    #     # except RuntimeWarning as err:
+    #     except Exception:
+    #         print('A problem was encountered:')
+    #         a_errs[row] = 0
 
     # print('\nErr:\n',a_errs)
 
