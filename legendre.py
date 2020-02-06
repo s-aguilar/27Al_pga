@@ -80,23 +80,18 @@ def convert(old):
 
 # Read in the data into dataframe
 colNames = ['Energy','Angle','Cross-section','Error']
-a1 = pd.read_table('rMatrix/27Al_rMatrix_a1_cleaned.dat',names=colNames)
-
-dict_channels = {'a1':a1,'p1':p1,'p2':p2}
-
 
 # Plotting: OFF = False, ON = True
 plot_it = False
 
-
 # Perform the analysis over all the channels
-channels = ['a1']
+channels = ['a1','p1','p2']
 for ch in channels:
 
-    print(ch,' channel:\n-Working on Legendre fitting')
+    print(ch,'channel:\n-Working on Legendre fitting')
     angle = np.array([0,15,30,45,60,75,90])
 
-    chan = dict_channels[ch]
+    chan = pd.read_table('rMatrix/27Al_rMatrix_%s_cleaned.dat'%ch,names=colNames)
     chan = chan.sort_values(by=['Energy'])
 
     # is in Lab energy, convert to center-of-mass
@@ -138,6 +133,9 @@ for ch in channels:
     # print(min(energyList),max(energyList))
     # exit()
 
+    # Up to Legendre Polynomial "BLAH" in legendre_order[list] index starts from 0, can go up to 5
+    leg_ord = 2
+
     start_time = time.time()
     # perform Legendre fit over the angular distribution at each energy
     for nrg in energyList:
@@ -153,10 +151,6 @@ for ch in channels:
         masked_err_chan = temp_chan['Error'].values
 
         ang_knots = np.radians(np.linspace(0,90,91)) # RADIANSIFIED
-
-
-        # Up to Legendre Polynomial "BLAH" in legendre_order[list] index starts from 0, can go up to 5
-        leg_ord = 2
 
 
         # Loop through the number of terms used in Legendre expansion:
@@ -250,6 +244,7 @@ for ch in channels:
     for _ in range(0,leg_ord+1):
         stuff = dict_ord_a[str(legendre_order[_][-1])]
         stuff2 = dict_ord_err_a[str(legendre_order[_][-1])]
+        print(len(stuff),len(stuff2))
         df = pd.DataFrame(data=stuff,index=energyList,columns=colLabels[0:_+1])
         df1 =  pd.DataFrame(data=stuff2,index=energyList,columns=colLabelss[0:_+1])
         df = pd.concat([df, df1], axis=1, sort=False)
@@ -301,11 +296,11 @@ for ch in channels:
 
     # Save angle integrated cross section for rMatrix
     with open('rMatrix/27Al_rMatrix_%s_angInt.dat'%ch,'w') as f:
-        print(len(a0_final),len(a0_err_final),len(energyList))
+        # print(len(a0_final),len(a0_err_final),len(energyList))
 
         cross = np.array(a0_final)*4*np.pi
         cross_err = np.array(a0_err_final)*4*np.pi
-        print(len(a0_final),len(a0_err_final),len(energyList))
+        # print(len(a0_final),len(a0_err_final),len(energyList))
         # exit()
         for loop in range(len(energyList)):
             if cross[loop] > 0 and cross_err[loop] > 0 and cross_err[loop] < cross[loop]:
@@ -313,3 +308,5 @@ for ch in channels:
                 f.write(printOut)
             else:
                 print('Problem at Ep:',energyList[loop])
+
+    print('\n\n\n')

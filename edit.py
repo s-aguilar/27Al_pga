@@ -109,6 +109,8 @@ for ch in channels:
     chan.query('Run != 863',inplace=True)   # Explicit BG run
     chan.query('Run != 939',inplace=True)   # Explicit BG run
 
+    # Explicitly drop bad run
+    chan.query('Run != 667',inplace=True)   # bad run, charge recorded incorrect
 
     # Beginning DataFrame
     start_time = time.time()
