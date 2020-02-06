@@ -15,7 +15,7 @@ nel_p1_shift = nel_p1.apply(lambda x: x-.004 if x.name == 'Energy' else x)
 nel_p2_shift = nel_p2.apply(lambda x: x-.004 if x.name == 'Energy' else x)
 
 # Saving DataFrame to `.dat` file
-np.savetxt('rMatrix/Nelson_pa0_EXFOR_shift.dat', nel_a0_shift.values, fmt='%f')
-np.savetxt('rMatrix/Nelson_pa1_EXFOR_shift.dat', nel_a1_shift.values, fmt='%f')
-np.savetxt('rMatrix/Nelson_pp1_EXFOR_shift.dat', nel_p1_shift.values, fmt='%f')
-np.savetxt('rMatrix/Nelson_pp2_EXFOR_shift.dat', nel_p2_shift.values, fmt='%f')
+np.savetxt('rMatrix/Nelson_pa0_EXFOR_shift.dat', nel_a0_shift.values,fmt='%5.4f   %d   %f   %f')
+np.savetxt('rMatrix/Nelson_pa1_EXFOR_shift.dat', nel_a1_shift.values,fmt='%5.4f   %d   %f   %f')
+np.savetxt('rMatrix/Nelson_pp1_EXFOR_shift.dat', nel_p1_shift.values,fmt='%5.4f   %d   %f   %f')
+np.savetxt('rMatrix/Nelson_pp2_EXFOR_shift.dat', nel_p2_shift.values,fmt='%5.4f   %d   %f   %f')
