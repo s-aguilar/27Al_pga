@@ -1,0 +1,4 @@
+#!/bin/bash
+
+g++ -o tpar_standard tpar_standard.cpp
+#cp tpar_standard ~/bin/

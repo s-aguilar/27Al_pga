@@ -70,7 +70,7 @@ for ch in channels:
     print('Starting averaging process...')
     start_time = time.time()
 
-    # Custom aggregation functions to correctly calculate yields and their errors
+    # Custom aggregation functions to correctly averaged calculate yields and their errors
     avgYEffcor = lambda x : np.average(x, weights=df.loc[x.index,'Yield err effcor']**(-2))
     avgYErrEffcor = lambda x : 1/np.sqrt(np.sum(df.loc[x.index,'Yield err effcor']**(-2)))
 
